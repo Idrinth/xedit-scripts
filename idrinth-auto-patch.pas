@@ -4,9 +4,13 @@ var
   f: IwbFile;
   signatures, flags, lists, blacklist, blockcopy: TStringList;
   i: integer;
-  cleanOften: boolean;
+  cleanOften, allowInterrupt: boolean;
 function Initialize: integer;
+var
+  buttonSelected: integer;
 begin
+  buttonSelected := MessageDlg('Do you want to be able to interrupt the script with pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
+  allowInterrupt := (buttonSelected = mrYes);
   for i := 0 to FileCount -1 do
   begin
     if SameText(GetFileName(FileByIndex(i)), 'IdrinthAutoPatch.esp') then
@@ -171,9 +175,9 @@ begin
   for i := 0 to ElementCount(e)-1 do
   begin
     element := ElementByIndex(e, i);
-    name := Signature(element);
+    name := BaseName(element);
     if name = '' then
-      name := BaseName(element);
+      name := Signature(element);
     if name = '' then
       name := Name(element);
     if name = '' then
@@ -424,7 +428,7 @@ var
   path: string;
   s: string;
 begin
-  if getKeyState(VK_ESCAPE) < 0 then
+  if allowInterrupt and (getKeyState(VK_ESCAPE) < 0) then
   begin
     AddMessage('Esc pressed, terminating script.');
     Result := 1;
