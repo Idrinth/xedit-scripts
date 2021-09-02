@@ -2,8 +2,9 @@ unit userscript;
 
 var
   f: IwbFile;
-  signatures, flags, lists, blacklist, blockcopy, pathlist: TStringList;
+  signatures, flags, lists, blacklist, blockcopy: TStringList;
   i: integer;
+  cleanOften: boolean;
 function Initialize: integer;
 begin
   for i := 0 to FileCount -1 do
@@ -17,7 +18,7 @@ begin
     f := AddNewFileName('IdrinthAutoPatch.esp');
   if wbGameName = 'Skyrim' then
     AddMasterIfMissing(f,'Skyrim.esm');
-  pathlist := TStringList.Create;
+  cleanOften := (FileCount > 255);
   signatures := TStringList.Create;
   signatures.Add('NPC_');
   signatures.Add('RACE');
@@ -72,6 +73,8 @@ begin
   flags.Add('Eye Morph Flags 2');
   flags.Add('Inherits');
   flags.Add('WRLD#DATA');
+  flags.Add('CELL#DATA');
+  flags.Add('CSTY#DATA');
   lists := TStringList.Create;
   lists.Add('Effects');
   lists.Add('Scripts');
@@ -101,10 +104,21 @@ begin
   lists.Add('References');
   lists.Add('Relations');
   lists.Add('Words of Power');
+  lists.Add('LCSR');
+  lists.Add('LCPR');
+  lists.Add('LCEP');
+  lists.Add('LCEC');
+  lists.Add('ACSR');
+  lists.Add('ACEP');
+  lists.Add('LCUN');
+  lists.Add('ACUN');
+  lists.Add('ACEC');
+  lists.Add('ACPR');
   blockcopy := TStringList.Create;
   blockcopy.Add('VMAD');
   blockcopy.Add('Items');
   blockcopy.Add('Conditions');
+  blockcopy.Add('Coordinates');
   blacklist := TStringList.Create;
   blacklist.Add('KSIZ');
   blacklist.Add('PRKZ');
@@ -114,19 +128,23 @@ begin
 end;
 
 function IsInList(list: TStringList; element: IInterface; e: IInterface): boolean;
+var
+  nme: string;
+  sig: string;
 begin
+  Result := false;
+  nme := Signature(element);
+  if nme = '' then
+    nme := BaseName(element);
+  if nme = '' then
+    nme := Name(element);
+  if nme = '' then
+    Exit;
   Result := true;
-  if lists.IndexOf(Signature(element)) > -1 then
+  if lists.IndexOf(nme) <> -1 then
     Exit;
-  if lists.IndexOf(BaseName(element)) > -1 then
-    Exit;
-  if lists.IndexOf(Name(element)) > -1 then
-    Exit;
-  if lists.IndexOf(Signature(e) + '#' + Signature(element)) > -1 then
-    Exit;
-  if lists.IndexOf(Signature(e) + '#' + BaseName(element)) > -1 then
-    Exit;
-  if lists.IndexOf(Signature(e) + '#' + Name(element)) > -1 then
+  sig := Signature(e);
+  if lists.IndexOf(sig + '#' + nme) <> -1 then
     Exit;
   Result := false;
 end;
@@ -134,8 +152,11 @@ procedure AddAllMasters(ef: IwbFile);
 var
   i, c: integer;
 begin
+  c := MasterCount(ef);
   AddMasterIfMissing(f, GetFileName(ef));
   if MasterCount(ef) = 0 then
+    Exit;
+  if NOT cleanOften AND (MasterCount(ef) = c) then
     Exit;
   for i := 0 to MasterCount(ef) - 1 do
     AddAllMasters(MasterByIndex(ef, i));
@@ -143,25 +164,27 @@ end;
 
 procedure GetPaths(e: IInterface;prefix: string;list: TStringList; base: IInterface);
 var
-  j: integer;
+  i: integer;
   element: IInterface;
-  name, full: string;
+  name: string;
 begin
-  for j := 0 to ElementCount(e)-1 do
+  for i := 0 to ElementCount(e)-1 do
   begin
-    element := ElementByIndex(e, j);
+    element := ElementByIndex(e, i);
     name := Signature(element);
     if name = '' then
       name := BaseName(element);
     if name = '' then
       name := Name(element);
+    if name = '' then
+      Continue;
     if name = 'Record Header' then
     begin
       if list.IndexOf('Record Header\Record Flags') = -1 then
         list.Add('Record Header\Record Flags');
       Continue;
     end;
-    if (ElementCount(element) > 0) and not IsInList(lists, element, base) and not IsInList(flags, element, base)  and not IsInList(blockcopy, element, base) then
+    if (ElementCount(element) > 0) and not IsInList(lists, element, base) and not IsInList(flags, element, base) and not IsInList(blockcopy, element, base) then
     begin
       GetPaths(element, prefix + name + '\', list, base);
       Continue;
@@ -215,6 +238,7 @@ begin
   end;
   Result := True
 end;
+
 procedure handleWordList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
 var
   keywordsP, keywordsO, keywordsE: TStringList;
@@ -253,15 +277,12 @@ begin
   for k:=0 to keywordsP.Count -1 do
   begin
     if keywordsP[k] <> '' then
-      try
-        SetEditValue(ElementAssign(patchedE, HighInteger, nil, False), keywordsP[k]);
-      except
-        AddMessage('    Failed to add '+keywordsP[k]+' - fix manually');
-      end;
+      SetEditValue(ElementAssign(patchedE, HighInteger, nil, False), keywordsP[k]);
   end;
   if counter <> '' then
     SetElementEditValues(patched, counter, ElementCount(patchedE));
 end;
+
 function IsWordListSame(list1: IInterface; list2: IInterface): boolean;
 var
   k: integer;
@@ -286,6 +307,7 @@ begin
   end;
   Result := keywords.Count = 0;
 end;
+
 function HasUnpatchedMaster(e: IInterface): boolean;
 var
   i, j, pos: integer;
@@ -329,10 +351,12 @@ begin
   end;
   SetElementEditValues(rec, countname, ElementCount(lst))
 end;
-function IsElement(element:IInterface; name: string): boolean;
+
+function IsElement(element:IInterface; nme: string): boolean;
 begin
-  Result := SameText(Signature(element), name) or SameText(BaseName(element), name);
+  Result := SameText(Signature(element), nme) or SameText(BaseName(element), nme) or SameText(Name(element), nme);
 end;
+
 procedure MergeFlags(patched: IInterface; original: IInterface; element: IInterface);
 var
   flags: TStringDynArray;
@@ -354,10 +378,12 @@ begin
     end;
   end;
 end;
+
 function ignore(): boolean;
 begin
   Result := true;
 end;
+
 procedure CreateElements(e: IInterface; path: string);
 var
   i: integer;
@@ -381,6 +407,7 @@ begin
         Add(e, parts[i], true);
   end;
 end;
+
 function Process(e: IInterface): integer;
 var
   i, k, j: integer;
@@ -442,8 +469,6 @@ begin
       for j := 0 to paths.Count-1 do
       begin
         path := paths[j];
-        if pathlist.IndexOf(Signature(e)+'#'+path) = -1 then
-          pathlist.Add(Signature(e)+'#'+path);
         element := ElementByPath(override, path);
         original := ElementByPath(previous, path);
         patchedE := ElementByPath(patched, path);
@@ -514,16 +539,16 @@ begin
             wbCopyElementToRecord(container, element, false, true);
           Continue;
         end;
-        if NOT Assigned(element) AND Assigned(patchedE) AND Assigned(original) then
-        begin
-          RemoveElement(patched, patchedE);
-          Continue;
-        end;
         if IsInList(flags, element, e) then
         begin
           if NOT Assigned(patchedE) then
             patchedE := Add(patched, Signature(element), true);
           MergeFlags(patchedE, original, element);
+          Continue;
+        end;
+        if NOT Assigned(element) AND Assigned(patchedE) AND Assigned(original) then
+        begin
+          RemoveElement(patched, patchedE);
           Continue;
         end;
         if GetElementEditValues(override, path) <> GetElementEditValues(previous, path) then
@@ -568,21 +593,22 @@ begin
     on Ex : Exception do
       AddMessage('    ' + Ex.ClassName+' error raised, with message : '+Ex.Message);
   end;
-  CleanMasters(f);
+  if cleanOften then
+    CleanMasters(f);
 end;
 
 function Finalize: integer;
 var
   i: IInterface;
 begin
+  if NOT cleanOften then
+    CleanMasters(f);
+  Result := 0;
   SortMasters(f);
   i := ElementByIndex(f, 0);
-  SetElementEditValues(i, 'CNAM', 'Idrinth''s AutomaticPatch');
+  SetElementEditValues(i, 'CNAM', 'Idrinth''s Automatic Patch');
   SetElementEditValues(i, 'SNAM', 'An automatically generated patch. You should delete this and regenerate the patch if your loadorder changes.');
   SetElementNativeValues(i, 'Record Header\Record Flags\ESL', 1);
-  for i:=0 to pathlist.Count -1 do
-    AddMessage(pathlist[i]);
-  Result := 0;
 end;
 
 end.
