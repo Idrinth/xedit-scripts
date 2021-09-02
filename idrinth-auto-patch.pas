@@ -141,10 +141,10 @@ begin
   if nme = '' then
     Exit;
   Result := true;
-  if lists.IndexOf(nme) <> -1 then
+  if list.IndexOf(nme) <> -1 then
     Exit;
   sig := Signature(e);
-  if lists.IndexOf(sig + '#' + nme) <> -1 then
+  if list.IndexOf(sig + '#' + nme) <> -1 then
     Exit;
   Result := false;
 end;
