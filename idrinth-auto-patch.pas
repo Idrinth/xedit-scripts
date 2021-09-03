@@ -2,7 +2,7 @@ unit userscript;
 
 var
   f: IwbFile;
-  signatures, flags, lists, blacklist, blockcopy: TStringList;
+  signatures, flags, blacklist, blockcopy, wordlists, objectlists, sorted: TStringList;
   i: integer;
   cleanOften, allowInterrupt: boolean;
 function Initialize: integer;
@@ -59,6 +59,8 @@ begin
   signatures.Add('WATR');
   signatures.Add('WOOP');
   signatures.Add('WTHR');
+  sorted := TStringList.Create;
+  sorted.Add('RACE#Flags 2');
   flags := TStringList.Create;
   flags.Add('Flags');
   flags.Add('Flags2');
@@ -79,48 +81,54 @@ begin
   flags.Add('WRLD#DATA');
   flags.Add('CELL#DATA');
   flags.Add('CSTY#DATA');
-  lists := TStringList.Create;
-  lists.Add('Effects');
-  lists.Add('Scripts');
-  lists.Add('KWDA');
-  lists.Add('Factions');
-  lists.Add('Actor Effects');
-  lists.Add('XCLR');
-  lists.Add('ARMA#MODL');
-  lists.Add('Leveled List Entries');
-  lists.Add('Armature');
-  lists.Add('MODS');
-  lists.Add('MO2S');
-  lists.Add('MO3S');
-  lists.Add('MO4S');
-  lists.Add('Perks');
-  lists.Add('Skill Boosts');
-  lists.Add('Skill Values');
-  lists.Add('Skill Offsets');
-  lists.Add('Attacks');
-  lists.Add('Tint Layers');
-  lists.Add('Tint Masks');
-  lists.Add('Head Parts');
-  lists.Add('MO5S');
-  lists.Add('MGEF#SNDD');
-  lists.Add('Script Fragments');
-  lists.Add('Parts');
-  lists.Add('References');
-  lists.Add('Relations');
-  lists.Add('Words of Power');
-  lists.Add('LCSR');
-  lists.Add('LCPR');
-  lists.Add('LCEP');
-  lists.Add('LCEC');
-  lists.Add('ACSR');
-  lists.Add('ACEP');
-  lists.Add('LCUN');
-  lists.Add('ACUN');
-  lists.Add('ACEC');
-  lists.Add('ACPR');
+  wordlists := TStringList.Create;
+  wordlists.Add('Perks');
+  wordlists.Add('KWDA');
+  wordlists.Add('Effects');
+  wordlists.Add('Actor Effects');
+  wordlists.Add('MODL');
+  wordlists.Add('ACID');
+  wordlists.Add('LCID');
+  wordlists.Add('References');
+  wordlists.Add('Movement Type Names');
+  objectlists := TStringList.Create;
+  objectlists.Add('Scripts');
+  objectlists.Add('Factions');
+  objectlists.Add('Actor Effects');
+  objectlists.Add('XCLR');
+  objectlists.Add('Leveled List Entries');
+  objectlists.Add('Armature');
+  objectlists.Add('MODS');
+  objectlists.Add('MO2S');
+  objectlists.Add('MO3S');
+  objectlists.Add('MO4S');
+  objectlists.Add('Perks');
+  objectlists.Add('Skill Boosts');
+  objectlists.Add('Skill Values');
+  objectlists.Add('Skill Offsets');
+  objectlists.Add('Attacks');
+  objectlists.Add('Tint Layers');
+  objectlists.Add('Tint Masks');
+  objectlists.Add('Head Parts');
+  objectlists.Add('MO5S');
+  objectlists.Add('MGEF#SNDD');
+  objectlists.Add('Script Fragments');
+  objectlists.Add('Parts');
+  objectlists.Add('Relations');
+  objectlists.Add('Words of Power');
+  objectlists.Add('LCSR');
+  objectlists.Add('LCPR');
+  objectlists.Add('LCEP');
+  objectlists.Add('LCEC');
+  objectlists.Add('ACSR');
+  objectlists.Add('ACEP');
+  objectlists.Add('LCUN');
+  objectlists.Add('ACUN');
+  objectlists.Add('ACEC');
+  objectlists.Add('ACPR');
+  objectlists.Add('Items');
   blockcopy := TStringList.Create;
   blockcopy.Add('VMAD');
-  blockcopy.Add('Items');
   blockcopy.Add('Conditions');
   blockcopy.Add('Coordinates');
   blacklist := TStringList.Create;
@@ -170,76 +178,34 @@ procedure GetPaths(e: IInterface;prefix: string;list: TStringList; base: IInterf
 var
   i: integer;
   element: IInterface;
-  name: string;
+  nme: string;
 begin
-  for i := 0 to ElementCount(e)-1 do
+  for i := 0 to Pred(ElementCount(e)) do
   begin
     element := ElementByIndex(e, i);
-    name := Name(element);
-    if name = '' then
+    nme := Name(element);
+    if nme = '' then
       Continue;
-    if name = 'Record Header' then
+    if nme = 'Record Header' then
     begin
       if list.IndexOf('Record Header\Record Flags') = -1 then
         list.Add('Record Header\Record Flags');
       Continue;
     end;
-    if (ElementCount(element) > 0) and not IsInList(lists, element, base) and not IsInList(flags, element, base) and not IsInList(blockcopy, element, base) then
+    if (ElementCount(element) > 0) and not IsInList(wordlists, element, base) and not IsInList(objectlists, element, base) and not IsInList(flags, element, base) and not IsInList(blockcopy, element, base) then
     begin
-      GetPaths(element, prefix + name + '\', list, base);
+      GetPaths(element, prefix + nme + '\', list, base);
       Continue;
     end;
-    if list.IndexOf(prefix + name) = -1 then
+    if list.IndexOf(prefix + nme) = -1 then
     begin
-      list.Add(prefix + name);
+      list.Add(prefix + nme);
       Continue;
     end;
   end;
 end;
 
-function Same(e: IInterface; d: IInterface): boolean;
-var
-  paths: TStringList;
-  path: string;
-  element: IInterface;
-  winner: IInterface;
-  i: integer;
-begin
-  paths := TStringList.Create;
-  GetPaths(e, '', paths, e);
-  GetPaths(d, '', paths, e);
-  for i := 0 to paths.Count -1 do
-  begin
-    path := paths[i];
-    element := ElementByPath(e, path);
-    winner := ElementByPath(d, path);
-    Result:= False;
-    if Assigned(element) and NOT Assigned (winner) then
-      Exit;
-    if NOT Assigned(element) and Assigned (winner) then
-      Exit;
-    if IsInList(flags, element, e) then
-    begin
-      if GetNativeValue(winner) <> GetNativeValue(element) then
-        Exit;
-      Continue;
-    end;
-    if IsInList(lists, element, e) then
-    begin
-      if ElementCount(element) <> ElementCount(winner) then
-        Exit;
-      if IsElement(element, 'Perks') or IsElement(element, 'KWDA') or IsElement(element, 'Effects') or IsElement(element, 'Actor Effects') or IsElement(element, 'MODL') then
-        if NOT IsWordListSame(element, winner) then
-          Exit;
-      Continue;
-    end;
-    if GetElementEditValues(e, path) <> GetElementEditValues(d, path) then
-      Exit;
-  end;
-  Result := True
-end;
-
-procedure handleWordList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
+procedure HandleWordList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
 var
   keywordsP, keywordsO, keywordsE: TStringList;
   k: integer;
@@ -281,6 +247,26 @@ begin
   end;
   if counter <> '' then
     SetElementEditValues(patched, counter, ElementCount(patchedE));
+end;
+procedure HandleObjectList(container: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
+var
+  k: integer;
+begin
+  if Not Assigned(patchedE) then
+    patchedE := Add(container, wrapper, true);
+  for k := 0 to Pred(ElementCount(element)) do
+  begin
+    ElementAssign(patchedE, HighInteger, ElementByIndex(element, k), False)
+  end;
+  if counter <> '' then
+    SetElementEditValues(patched, counter, ElementCount(patchedE));
+end;
+procedure HandleBlockCopy(patchedE: IInterface; element: IInterface; original: IInterface; container: IInterface);
+begin
+  if Assigned(patchedE) and (Assigned(element) or Assigned(original)) then
+    RemoveElement(container, patchedE);
+  if Assigned(element) then
+    wbCopyElementToRecord(container, element, false, true);
 end;
 
 function IsWordListSame(list1: IInterface; list2: IInterface): boolean;
@@ -410,7 +396,7 @@ end;
 
 function Process(e: IInterface): integer;
 var
-  i, k, j: integer;
+  i, j: integer;
   override: IInterface;
   winner: IInterface;
   patched: IwbElement;
@@ -441,10 +427,10 @@ begin
       Exit;
     if NOT HasUnpatchedMaster(e) then
       Exit;
-    AddMessage('  Processing '+Name(e));
     winner := WinningOverride(e);
     if SameText(GetFileName(GetFile(winner)), GetFileName(f)) then
       Exit;
+    AddMessage('  Processing '+Name(e));
     AddAllMasters(GetFile(e));
     patched := wbCopyElementToFile(e, f, false, true);
     for i := 0 to Pred(OverrideCount(e)) do
@@ -458,17 +444,19 @@ begin
       for j := 0 to Pred(MasterCount(overrideFile)) do
         if ElementExists(MasterByIndex(overrideFile, j), Name(e)) then
           previous = ElementByName(MasterByIndex(overrideFile, j), Name(e));
+      if ConflictAllForElements(previous, override, False, False) <= caNoConflict then
+        Continue;
       paths := TStringList.Create;
       GetPaths(e, '', paths, e);
       GetPaths(previous, '', paths, e);
       GetPaths(override, '', paths, e);
       if paths.Count = 0 then
         Continue;
-      if blacklist.IndexOf(path) <> -1 then
-        Continue;
       for j := 0 to paths.Count-1 do
       begin
         path := paths[j];
+        if blacklist.IndexOf(path) <> -1 then
+          Continue;
         element := ElementByPath(override, path);
         original := ElementByPath(previous, path);
         patchedE := ElementByPath(patched, path);
@@ -480,7 +468,9 @@ begin
         container := GetContainer(patchedE);
         if Not Assigned(container) then
           container := ElementByPath(patched, Path(GetContainer(element)));
-        if IsInList(lists, element, e) then
+        if Not Assigned(container) then
+          container := patched;
+        if IsInList(wordlists, element, e) then
         begin
           if NOT Assigned(original) AND NOT Assigned(element) then
             Continue;
@@ -514,29 +504,67 @@ begin
               handleWordList(patched, patchedE, original, element, 'Effects', '');
             Continue;
           end;
-          if IsElement(element, 'Leveled List Entries') then
+          if IsElement(element, 'LCID') then
           begin
-            if Not Assigned(patchedE) then
-              patchedE := Add(container, 'Leveled List Entries', true);
-            for k := 0 to Pred(ElementCount(element)) do
-            begin
-              ElementAssign(patchedE, HighInteger, ElementByIndex(element, k), False)
-            end;
-            SetElementEditValues(patched, 'LLCT', ElementCount(patchedE));
+            handleWordList(container, patchedE, original, element, 'LCID', '');
             Continue;
           end;
-          if Assigned(patchedE) and (Assigned(element) or Assigned(original)) then
-            RemoveElement(container, patchedE);
-          if Assigned(element) then
-            wbCopyElementToRecord(container, element, false, true);
+          if IsElement(element, 'ACID') then
+          begin
+            handleWordList(container, patchedE, original, element, 'ACID', '');
+            Continue;
+          end;
+          if IsElement(element, 'Movement Type Names') then
+          begin
+            handleWordList(container, patchedE, original, element, 'Movement Type Names', '');
+            Continue;
+          end;
+          HandleBlockCopy(patchedE, element, original, container);
+          Continue;
+        end;
+        if IsInList(objectlists, element, e) then
+        begin
+          if IsElement(element, 'Leveled List Entries') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'Leveled List Entries', 'LLCT');
+            Continue;
+          end;
+          if IsElement(element, 'ACPR') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'ACPR', '');
+            Continue;
+          end;
+          if IsElement(element, 'LCPR') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'LCPR', '');
+            Continue;
+          end;
+          if IsElement(element, 'ACUN') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'ACUN', '');
+            Continue;
+          end;
+          if IsElement(element, 'LCUN') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'LCUN', '');
+            Continue;
+          end;
+          if IsElement(element, 'ACSR') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'ACSR', '');
+            Continue;
+          end;
+          if IsElement(element, 'LCSR') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'LCSR', '');
+            Continue;
+          end;
+          HandleBlockCopy(patchedE, element, original, container);
           Continue;
         end;
         if IsInList(blockcopy, element, e) then
         begin
-          if Assigned(patchedE) and (Assigned(element) or Assigned(original)) then
-            RemoveElement(container, patchedE);
-          if Assigned(element) then
-            wbCopyElementToRecord(container, element, false, true);
+          HandleBlockCopy(patchedE, element, original, container);
           Continue;
         end;
         if IsInList(flags, element, e) then
@@ -554,7 +582,7 @@ begin
         if GetElementEditValues(override, path) <> GetElementEditValues(previous, path) then
         begin
           if NOT Assigned(patchedE) then
-            patchedE := Add(container, Signature(element), true);
+            patchedE := wbCopyElementToRecord(container, element, false, true);
           try
             SetElementEditValues(patched, path, StrToFloat(GetElementEditValues(override, path)));
           except
@@ -587,7 +615,7 @@ begin
       RemoveInvalidEntries(patched, 'KWDA', 'Keyword', 'KZIS');
     if (s = 'MODL') then
       RemoveInvalidEntries(patched, 'MODL', 'MODL', '');
-    if Same(patched, winner) then
+    if ConflictAllForElements(winner, patched, False, False) <= caNoConflict then
       Remove(patched);
   except
     on Ex : Exception do
