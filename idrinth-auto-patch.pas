@@ -9,7 +9,8 @@ function Initialize: integer;
 var
   buttonSelected: integer;
 begin
-  buttonSelected := MessageDlg('Do you want to be able to interrupt the script with pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
+  if wbVersionNumber > 1 then
+    buttonSelected := MessageDlg('Do you want to be able to interrupt the script with pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
   allowInterrupt := (buttonSelected = mrYes);
   for i := 0 to FileCount -1 do
   begin
@@ -382,6 +383,8 @@ begin
     prev := create;
     if create <> '' then
       create := create + '\';
+    if parts[i] = '' then
+      Exit;
     create := create + parts[i];
     el := ElementByPath(e, create);
     if NOT Assigned(el) then
@@ -580,7 +583,12 @@ begin
         if GetElementEditValues(override, path) <> GetElementEditValues(previous, path) then
         begin
           if NOT Assigned(patchedE) then
+          begin
             patchedE := wbCopyElementToRecord(container, element, false, true);
+            if NOT Assigned(patchedE) then
+              AddMessage('Failed to copy element to '+path);
+            Continue;
+          end;
           try
             SetElementEditValues(patched, path, StrToFloat(GetElementEditValues(override, path)));
           except
