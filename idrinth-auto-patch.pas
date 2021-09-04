@@ -369,12 +369,12 @@ begin
   Result := true;
 end;
 
-procedure CreateElements(e: IInterface; path: string);
+procedure CreateElements(e: IInterface; path: string; element: IInterface);
 var
   i: integer;
   create, prev: string;
   parts: TStringDynArray;
-  el: IInterface;
+  el, el2: IInterface;
 begin
   parts := SplitString(FlagValues(e), '\');
   create := '';
@@ -387,11 +387,12 @@ begin
       Exit;
     create := create + parts[i];
     el := ElementByPath(e, create);
+    el2 := ElementByPath(element, create);
     if NOT Assigned(el) then
       if prev <> '' then
-        Add(ElementByPath(e, prev), parts[i], true);
+        Add(ElementByPath(e, prev), Signature(el2), true);
       else
-        Add(e, parts[i], true);
+        Add(e, Signature(el2), true);
   end;
 end;
 
@@ -463,7 +464,7 @@ begin
         patchedE := ElementByPath(patched, path);
         if NOT Assigned(patchedE) AND Assigned(element) then
         begin
-          CreateElements(patched, path);
+          CreateElements(patched, path, element);
           patchedE := ElementByPath(patched, path);
         end;
         container := GetContainer(patchedE);
