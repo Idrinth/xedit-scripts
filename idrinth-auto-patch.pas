@@ -20,8 +20,6 @@ begin
   end;
   if NOT Assigned(f) then
     f := AddNewFileName('IdrinthAutoPatch.esp');
-  if wbGameName = 'Skyrim' then
-    AddMasterIfMissing(f,'Skyrim.esm');
   cleanOften := (FileCount > 255);
   signatures := TStringList.Create;
   signatures.Add('NPC_');
