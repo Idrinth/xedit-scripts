@@ -424,7 +424,7 @@ end;
 
 function Same (one: IInterface; two: IInterface): boolean;
 var
-  paths. TStringList;
+  paths: TStringList;
   i: integer;
   conflicts: boolean;
 begin
