@@ -427,18 +427,21 @@ var
   paths: TStringList;
   i: integer;
   conflicts: boolean;
+  e1,e2: IInterface;
 begin
-  if ConflictAllForElements(prevovr, e, False, False) <> caNoConflict then
+  if ConflictAllForElements(one, two, False, False) <> caNoConflict then
   begin
     Result := false;
     Exit;
   end;
   Result := false;
   paths := TStringList.Create;
-  GetPaths(one, paths, one);
-  GetPaths(two, paths, two);
+  GetPaths(one, '', paths, one);
+  GetPaths(two, '', paths, two);
   for i:=0 to paths.Count - 1 do
   begin
+    e1 := ElementByPath(one, paths[i]);
+    e2 := ElementByPath(two, paths[i]);
     if IsInList(flags, e1, one) then
     begin
       if GetNativeValue(e1) <> GetNativeValue(e2) then
