@@ -295,7 +295,7 @@ begin
   if Assigned(patchedE) and (Assigned(element) or Assigned(original)) then
     RemoveElement(container, patchedE);
   if Assigned(element) then
-    wbCopyElementToRecord(container, element, false, true);
+    wbCopyElementToRecord(element, container, false, true);
 end;
 
 function IsWordListSame(list1: IInterface; list2: IInterface): boolean;
@@ -395,13 +395,14 @@ begin
   Result := true;
 end;
 
-procedure CreateElements(e: IInterface; path: string; element: IInterface);
+function CreateElements(e: IInterface; path: string; element: IInterface): IInterface;
 var
   i: integer;
   create, prev: string;
   parts: TStringDynArray;
   el, el2: IInterface;
 begin
+  Result := e;
   parts := SplitString(FlagValues(e), '\');
   create := '';
   for i:=0 to Length(parts) - 2 do
@@ -416,9 +417,11 @@ begin
     el2 := ElementByPath(element, create);
     if NOT Assigned(el) then
       if prev <> '' then
-        ElementAssign(ElementByPath(e, prev), LowInteger, el2, False)
+        Result := ElementAssign(ElementByPath(e, prev), LowInteger, el2, False)
       else
-        Add(e, Signature(el2), true);
+        Result := Add(e, Signature(el2), true);
+    else
+      Result := el;
   end;
 end;
 
@@ -531,17 +534,16 @@ begin
         element := ElementByPath(overrideRec, path);
         original := ElementByPath(previous, path);
         patchedE := ElementByPath(patched, path);
+        container := CreateElements(patched, path, element);
+        if not Assigned(container) then
+          container := patched;
         if NOT Assigned(patchedE) AND Assigned(element) then
         begin
-          CreateElements(patched, path, element);
-          patchedE := wbCopyElementToRecord(patched, element, false, true);
+          patchedE := wbCopyElementToRecord(element, container, false, true);
           if NOT Assigned(patchedE) then
             AddMessage('      Failed to copy element to '+path);
           Continue;
         end;
-        container := GetContainer(patchedE);
-        if not Assigned(container) then
-          container := patched;
         if IsInList(wordlists, element, e) then
         begin
           if NOT Assigned(original) AND NOT Assigned(element) then
