@@ -2,25 +2,16 @@ unit userscript;
 
 var
   f: IwbFile;
-  signatures, flags, blacklist, blockcopy, wordlists, objectlists, sorted: TStringList;
-  i: integer;
-  cleanOften, allowInterrupt: boolean;
+  signatures, flags, blacklist, blockcopy, wordlists, objectlists: TStringList;
+  cleanOften, allowInterrupt, groupedPatches: boolean;
 function Initialize: integer;
 var
   buttonSelected: integer;
 begin
   buttonSelected := MessageDlg('Do you want to be able to interrupt the script with pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
   allowInterrupt := (buttonSelected = mrYes);
-  for i := 0 to FileCount -1 do
-  begin
-    if SameText(GetFileName(FileByIndex(i)), 'IdrinthAutoPatch.esp') then
-    begin
-      f := FileByIndex(i);
-    end;
-  end;
-  if NOT Assigned(f) then
-    f := AddNewFileName('IdrinthAutoPatch.esp');
-  cleanOften := (FileCount > 255);
+  cleanOften := ((FileCount > 255) and NOT (FileCount > 383)) or (FileCount > 511);
+  groupedPatches := (FileCount > 383);
   signatures := TStringList.Create;
   buttonSelected := MessageDlg('Do you want to patch leveled lists? (pretty safe)',mtConfirmation, [mbYes,mbNO], 0);
   if buttonSelected = mrYes then
@@ -51,6 +42,7 @@ begin
     signatures.Add('NPC_');
     signatures.Add('RACE');
     signatures.Add('PERK');
+    signatures.Add('FACT');
   end;
   buttonSelected := MessageDlg('Do you want to patch worldspace related things? (medium success rate)',mtConfirmation, [mbYes,mbNO], 0);
   if buttonSelected = mrYes then
@@ -79,12 +71,9 @@ begin
     signatures.Add('CLAS');
     signatures.Add('CONT');
     signatures.Add('CSTY');
-    signatures.Add('FACT');
     signatures.Add('SLGM');
     signatures.Add('WOOP');
   end;
-  sorted := TStringList.Create;
-  sorted.Add('RACE#Flags 2');
   flags := TStringList.Create;
   flags.Add('Flags');
   flags.Add('Flags2');
@@ -161,7 +150,57 @@ begin
   blacklist.Add('LLCT');
   Result := 0;
 end;
-
+function GetFileByName(nme: string): IwbFile;
+var
+  i: integer;
+begin
+  if not groupedPatches then
+    nme := '';
+  nme := 'IdrinthAutoPatch'+nme+'.esp';
+  for i := 0 to FileCount -1 do
+  begin
+    if SameText(GetFileName(FileByIndex(i)), nme) then
+    begin
+      Result := FileByIndex(i);
+      Exit;
+    end;
+  end;
+  Result := AddNewFileName(nme);
+end;
+procedure SetFile(sig: string);
+begin
+  if (sig = 'LVLI') or (sig = 'LVSP') or (sig = 'LVLN') then
+  begin
+    f := GetFileByName('Leveled');
+    Exit;
+  end;
+  if (sig = 'WEAP') or (sig = 'AMMO') or (sig = 'PROJ') or (sig = 'ARMO') or (sig = 'ARMA') or (sig = 'BOOK') or (sig = 'ALCH') or (sig = 'INGR') or (sig = 'KEYM') or (sig = 'MISC') or (sig = 'PROJ') or (sig = 'SCRL') then
+  begin
+    f := GetFileByName('Items');
+    Exit;
+  end;
+  if (sig = 'NPC_') or (sig = 'RACE') or (sig = 'PERK') or (sig = 'FACT') then
+  begin
+    f := GetFileByName('NPC');
+    Exit;
+  end;
+  if (sig = 'LCTN') or (sig = 'CELL') or (sig = 'WRLD') or (sig = 'FLOR') or (sig = 'LIGH') or (sig = 'TREE') or (sig = 'WATR') or (sig = 'WTHR') or (sig = 'MHDT') then
+  begin
+    f := GetFileByName('World');
+    Exit;
+  end;
+  if (sig = 'ENCH') or (sig = 'SPEL') or (sig = 'MGEF') or (sig = 'SHOU') then
+  begin
+    f := GetFileByName('Magic');
+    Exit;
+  end;
+  if (sig = 'CLAS') or (sig = 'CONT') or (sig = 'CSTY') or (sig = 'SLGM') or (sig = 'WOOP') then
+  begin
+    f := GetFileByName('Other');
+    Exit;
+  end;
+  f := GetFileByName('');
+end;
 function IsInList(list: TStringList; element: IInterface; e: IInterface): boolean;
 var
   nme: string;
@@ -501,6 +540,7 @@ begin
       Exit;
     if NOT HasUnpatchedMaster(e) then
       Exit;
+    SetFile(s);
     winner := WinningOverride(e);
     if SameText(GetFileName(GetFile(winner)), GetFileName(f)) then
       Exit;
@@ -697,18 +737,43 @@ begin
     CleanMasters(f);
 end;
 
-function Finalize: integer;
+procedure FinalizeFile(fi: IwbFile);
 var
   i: IInterface;
 begin
   if NOT cleanOften then
-    CleanMasters(f);
-  Result := 0;
-  SortMasters(f);
+    CleanMasters(fi);
+  SortMasters(fi);
   i := ElementByIndex(f, 0);
   SetElementEditValues(i, 'CNAM', 'Idrinth''s Automatic Patch');
   SetElementEditValues(i, 'SNAM', 'An automatically generated patch. You should delete this and regenerate the patch if your loadorder changes.');
   SetElementNativeValues(i, 'Record Header\Record Flags\ESL', 1);
+end;
+
+function Finalize: integer;
+var
+  i: integer;
+  fi: IwbFile;
+begin
+  Result := 0;
+  for i := 0 to FileCount -1 do
+  begin
+    fi := FileByIndex(i);
+    if SameText(GetFileName(fi), 'IdrinthAutoPatch.esp') then
+      FinalizeFile(fi);
+    if SameText(GetFileName(fi), 'IdrinthAutoPatchLeveled.esp') then
+      FinalizeFile(fi);
+    if SameText(GetFileName(fi), 'IdrinthAutoPatchNPC.esp') then
+      FinalizeFile(fi);
+    if SameText(GetFileName(fi), 'IdrinthAutoPatchWorld.esp') then
+      FinalizeFile(fi);
+    if SameText(GetFileName(fi), 'IdrinthAutoPatchOther.esp') then
+      FinalizeFile(fi);
+    if SameText(GetFileName(fi), 'IdrinthAutoPatchItems.esp') then
+      FinalizeFile(fi);
+    if SameText(GetFileName(fi), 'IdrinthAutoPatchMagic.esp') then
+      FinalizeFile(fi);
+  end;
 end;
 
 end.
