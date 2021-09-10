@@ -4,14 +4,54 @@ var
   f: IwbFile;
   signatures, flags, blacklist, blockcopy, wordlists, objectlists: TStringList;
   cleanOften, allowInterrupt, groupedPatches: boolean;
-function Initialize: integer;
+
+function IsVersionWithCancelButton(): boolean;
+var
+  main,feature,bug: integer;
+begin
+  main := wbVersionNumber shr 24;
+  feature := wbVersionNumber shr 16 and $FF;
+  bug := wbVersionNumber shr 8 and $FF;
+  if main < 3 then
+  begin
+    Result := false;
+    Exit;
+  end;
+  if main < 3 then
+  begin
+    Result := false;
+    Exit;
+  end;
+  if feature > 0 then
+  begin
+    Result := true;
+    Exit;
+  end;
+  if bug > 3 then
+  begin
+    Result := true;
+    Exit;
+  end;
+  Result := false;
+end;
+
+function Initialize(): integer;
 var
   buttonSelected: integer;
 begin
-  buttonSelected := MessageDlg('Do you want to be able to interrupt the script with pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
-  allowInterrupt := (buttonSelected = mrYes);
-  cleanOften := true;//((FileCount > 255) and NOT (FileCount > 383)) or (FileCount > 511);
-  groupedPatches := false;//(FileCount > 383);
+  allowInterrupt := false;
+  if not IsVersionWithCancelButton() then
+  begin
+    buttonSelected := MessageDlg('Do you want to be able to interrupt the script with pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
+    allowInterrupt := (buttonSelected = mrYes);
+  end;
+  cleanOften := (FileCount > 255);
+  groupedPatches := false;
+  if cleanOften then
+  begin
+    buttonSelected := MessageDlg('Do you want to build patches by record type?',mtConfirmation, [mbYes,mbNO], 0);
+    groupedPatches := (buttonSelected = mrYes);
+  end;
   signatures := TStringList.Create;
   buttonSelected := MessageDlg('Do you want to patch leveled lists? (pretty safe)',mtConfirmation, [mbYes,mbNO], 0);
   if buttonSelected = mrYes then
@@ -112,7 +152,6 @@ begin
   wordlists.Add('Movement Type Names');
   wordlists.Add('Packages');
   objectlists := TStringList.Create;
-  objectlists.Add('Scripts');
   objectlists.Add('Factions');
   objectlists.Add('Actor Effects');
   objectlists.Add('XCLR');
@@ -133,7 +172,6 @@ begin
   objectlists.Add('MO5S');
   objectlists.Add('Perks');
   objectlists.Add('MGEF#SNDD');
-  objectlists.Add('Script Fragments');
   objectlists.Add('Parts');
   objectlists.Add('Relations');
   objectlists.Add('LCSR');
@@ -151,6 +189,8 @@ begin
   blockcopy.Add('VMAD');
   blockcopy.Add('Conditions');
   blockcopy.Add('Coordinates');
+  blockcopy.Add('Scripts');
+  blockcopy.Add('Script Fragments');
   blacklist := TStringList.Create;
   blacklist.Add('KSIZ');
   blacklist.Add('PRKZ');
@@ -164,8 +204,15 @@ var
   i: integer;
   full: string;
   rec: IInterface;
+  padNum: string;
 begin
-  full := 'IdrinthAutoPatch'+nme+IntToStr(incr)+'.esp';
+  padNum := IntToStr(incr);
+  if Length(padNum) = 1 then
+    padNum := '0' + padNum;
+  if Length(padNum) = 2 then
+    padNum := '0' + padNum;
+  full := 'IdrinthAutoPatch' + nme + padNum + '.esp';
+  AddMessage('creating/finding '+full);
   for i := 0 to FileCount -1 do
   begin
     if SameText(GetFileName(FileByIndex(i)), full) then
@@ -176,7 +223,10 @@ begin
   end;
   Result := AddNewFileName(full);
   rec := ElementByIndex(Result, 0);
-  SetElementEditValues(rec, 'CNAM', 'Idrinth''s Automatic Patch');
+  if nme = '' then
+    SetElementEditValues(rec, 'CNAM', 'Idrinth''s Automatic Patch No.' + padNum)
+  else
+    SetElementEditValues(rec, 'CNAM', 'Idrinth''s Automatic Patch for ' + nme + ' No.' + padNum);
   SetElementEditValues(rec, 'SNAM', 'An automatically generated patch. You should delete this and regenerate the patch if your loadorder changes.');
   SetElementNativeValues(rec, 'Record Header\Record Flags\ESL', 1);
 end;
@@ -250,8 +300,6 @@ begin
   c := MasterCount(ef);
   AddMasterIfMissing(f, GetFileName(ef));
   m := MasterCount(ef);
-  if m = 0 then
-    Exit;
   if NOT cleanOften AND (m = c) then
     Exit;
   for i := 0 to m - 1 do
@@ -551,6 +599,7 @@ begin
       on Ex: Exception do
         success := false;
     end;
+
     success := success and (MasterCount(f) < 200);
     if not success then
       CleanMasters(f);
@@ -796,8 +845,21 @@ begin
 end;
 
 function Finalize: integer;
+var
+  i: integer;
+  fi: IwbFile;
 begin
   Result := 0;
+  for i := 0 to FileCount -1 do
+  begin
+    fi := FileByIndex(i);
+    if SameText(Copy(GetFileName(fi), 1, 16), 'IdrinthAutoPatch') then
+    begin
+      if not cleanOften then
+        CleanMasters(fi);
+      SortMasters(fi);
+    end;
+  end;
 end;
 
 end.
