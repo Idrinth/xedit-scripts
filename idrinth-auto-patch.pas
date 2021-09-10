@@ -10,8 +10,8 @@ var
 begin
   buttonSelected := MessageDlg('Do you want to be able to interrupt the script with pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
   allowInterrupt := (buttonSelected = mrYes);
-  cleanOften := ((FileCount > 255) and NOT (FileCount > 383)) or (FileCount > 511);
-  groupedPatches := (FileCount > 383);
+  cleanOften := true;//((FileCount > 255) and NOT (FileCount > 383)) or (FileCount > 511);
+  groupedPatches := false;//(FileCount > 383);
   signatures := TStringList.Create;
   buttonSelected := MessageDlg('Do you want to patch leveled lists? (pretty safe)',mtConfirmation, [mbYes,mbNO], 0);
   if buttonSelected = mrYes then
