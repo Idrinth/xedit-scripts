@@ -104,6 +104,7 @@ begin
   wordlists.Add('LCID');
   wordlists.Add('References');
   wordlists.Add('Movement Type Names');
+  wordlists.Add('Packages');
   objectlists := TStringList.Create;
   objectlists.Add('Scripts');
   objectlists.Add('Factions');
@@ -124,6 +125,7 @@ begin
   objectlists.Add('Tint Masks');
   objectlists.Add('Head Parts');
   objectlists.Add('MO5S');
+  objectlists.Add('Perks');
   objectlists.Add('MGEF#SNDD');
   objectlists.Add('Script Fragments');
   objectlists.Add('Parts');
@@ -458,7 +460,10 @@ begin
       if prev <> '' then
         Result := ElementAssign(ElementByPath(e, prev), LowInteger, el2, False)
       else
-        Result := Add(e, Signature(el2), true);
+        if Signature(el2) <> ''
+          Result := Add(e, Signature(el2), true)
+        else
+          Result := Add(e, BaseName(el2), true)
     else
       Result := el;
   end;
@@ -633,6 +638,11 @@ begin
             handleWordList(container, patchedE, original, element, 'Movement Type Names', '');
             Continue;
           end;
+          if IsElement(element, 'Packages') then
+          begin
+            handleWordList(container, patchedE, original, element, 'Packages', '');
+            Continue;
+          end;
           HandleBlockCopy(patchedE, element, original, container);
           Continue;
         end;
@@ -641,6 +651,11 @@ begin
           if IsElement(element, 'Leveled List Entries') then
           begin
             handleObjectList(container, patchedE, original, element, 'Leveled List Entries', 'LLCT');
+            Continue;
+          end;
+          if IsElement(element, 'Perks') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'Perks', '');
             Continue;
           end;
           if IsElement(element, 'ACPR') then
