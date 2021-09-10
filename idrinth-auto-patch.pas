@@ -74,6 +74,12 @@ begin
     signatures.Add('SLGM');
     signatures.Add('WOOP');
   end;
+  if signatures.Count = 0 then
+  begin
+    AddMessage('Nothing to do with the given selection, exiting.');
+    Result := 1;
+    Exit;
+  end;
   flags := TStringList.Create;
   flags.Add('Flags');
   flags.Add('Flags2');
@@ -152,57 +158,69 @@ begin
   blacklist.Add('LLCT');
   Result := 0;
 end;
-function GetFileByName(nme: string): IwbFile;
+
+function GetFileByName(nme: string; incr: integer): IwbFile;
 var
   i: integer;
+  full: string;
+  rec: IInterface;
 begin
-  if not groupedPatches then
-    nme := '';
-  nme := 'IdrinthAutoPatch'+nme+'.esp';
+  full := 'IdrinthAutoPatch'+nme+IntToStr(incr)+'.esp';
   for i := 0 to FileCount -1 do
   begin
-    if SameText(GetFileName(FileByIndex(i)), nme) then
+    if SameText(GetFileName(FileByIndex(i)), full) then
     begin
       Result := FileByIndex(i);
       Exit;
     end;
   end;
-  Result := AddNewFileName(nme);
+  Result := AddNewFileName(full);
+  rec := ElementByIndex(Result, 0);
+  SetElementEditValues(rec, 'CNAM', 'Idrinth''s Automatic Patch');
+  SetElementEditValues(rec, 'SNAM', 'An automatically generated patch. You should delete this and regenerate the patch if your loadorder changes.');
+  SetElementNativeValues(rec, 'Record Header\Record Flags\ESL', 1);
 end;
-procedure SetFile(sig: string);
+
+procedure SetFile(sig: string; incr: integer);
 begin
+  if not groupedPatches then
+  begin
+    f := GetFileByName('', incr);
+    Exit;
+  end;
   if (sig = 'LVLI') or (sig = 'LVSP') or (sig = 'LVLN') then
   begin
-    f := GetFileByName('Leveled');
+    f := GetFileByName('Leveled', incr);
     Exit;
   end;
   if (sig = 'WEAP') or (sig = 'AMMO') or (sig = 'PROJ') or (sig = 'ARMO') or (sig = 'ARMA') or (sig = 'BOOK') or (sig = 'ALCH') or (sig = 'INGR') or (sig = 'KEYM') or (sig = 'MISC') or (sig = 'PROJ') or (sig = 'SCRL') then
   begin
-    f := GetFileByName('Items');
+    f := GetFileByName('Items', incr);
     Exit;
   end;
   if (sig = 'NPC_') or (sig = 'RACE') or (sig = 'PERK') or (sig = 'FACT') then
   begin
-    f := GetFileByName('NPC');
+    f := GetFileByName('NPC', incr);
     Exit;
   end;
   if (sig = 'LCTN') or (sig = 'CELL') or (sig = 'WRLD') or (sig = 'FLOR') or (sig = 'LIGH') or (sig = 'TREE') or (sig = 'WATR') or (sig = 'WTHR') or (sig = 'MHDT') then
   begin
-    f := GetFileByName('World');
+    f := GetFileByName('World', incr);
     Exit;
   end;
   if (sig = 'ENCH') or (sig = 'SPEL') or (sig = 'MGEF') or (sig = 'SHOU') then
   begin
-    f := GetFileByName('Magic');
+    f := GetFileByName('Magic', incr);
     Exit;
   end;
   if (sig = 'CLAS') or (sig = 'CONT') or (sig = 'CSTY') or (sig = 'SLGM') or (sig = 'WOOP') then
   begin
-    f := GetFileByName('Other');
+    f := GetFileByName('Other', incr);
     Exit;
   end;
-  f := GetFileByName('');
+  f := GetFileByName('', incr);
 end;
+
 function IsInList(list: TStringList; element: IInterface; e: IInterface): boolean;
 var
   nme: string;
@@ -224,6 +242,7 @@ begin
     Exit;
   Result := false;
 end;
+
 procedure AddAllMasters(ef: IwbFile);
 var
   i, c, m: integer;
@@ -318,6 +337,7 @@ begin
   if counter <> '' then
     SetElementEditValues(patched, counter, ElementCount(patchedE));
 end;
+
 procedure HandleObjectList(container: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
 var
   k: integer;
@@ -331,6 +351,7 @@ begin
   if counter <> '' then
     SetElementEditValues(container, counter, ElementCount(patchedE));
 end;
+
 procedure HandleBlockCopy(patchedE: IInterface; element: IInterface; original: IInterface; container: IInterface);
 begin
   if Assigned(patchedE) and (Assigned(element) or Assigned(original)) then
@@ -460,7 +481,7 @@ begin
       if prev <> '' then
         Result := ElementAssign(ElementByPath(e, prev), LowInteger, el2, False)
       else
-        if Signature(el2) <> ''
+        if Signature(el2) <> '' then
           Result := Add(e, Signature(el2), true)
         else
           Result := Add(e, BaseName(el2), true)
@@ -512,6 +533,31 @@ begin
   end;
   Result := true;
 end;
+
+procedure WrapMastersSafely(fi: IwbFile; sig: string);
+var
+  i: integer;
+  success: boolean;
+begin
+  success := false;
+  i := 0;
+  while not success do
+  begin
+    try
+      SetFile(sig, i);
+      AddAllMasters(fi);
+      success := true;
+    except
+      on Ex: Exception do
+        success := false;
+    end;
+    success := success and (MasterCount(f) < 200);
+    if not success then
+      CleanMasters(f);
+    i := i +1;
+  end;
+end;
+
 function Process(e: IInterface): integer;
 var
   i, j: integer;
@@ -545,12 +591,9 @@ begin
       Exit;
     if NOT HasUnpatchedMaster(e) then
       Exit;
-    SetFile(s);
+    WrapMastersSafely(GetFile(e), s);
     winner := WinningOverride(e);
-    if SameText(GetFileName(GetFile(winner)), GetFileName(f)) then
-      Exit;
     AddMessage('  Processing '+Name(e));
-    AddAllMasters(GetFile(e));
     patched := wbCopyElementToFile(e, f, false, true);
     for i := 0 to Pred(OverrideCount(e)) do
     begin
@@ -752,43 +795,9 @@ begin
     CleanMasters(f);
 end;
 
-procedure FinalizeFile(fi: IwbFile);
-var
-  i: IInterface;
-begin
-  if NOT cleanOften then
-    CleanMasters(fi);
-  SortMasters(fi);
-  i := ElementByIndex(f, 0);
-  SetElementEditValues(i, 'CNAM', 'Idrinth''s Automatic Patch');
-  SetElementEditValues(i, 'SNAM', 'An automatically generated patch. You should delete this and regenerate the patch if your loadorder changes.');
-  SetElementNativeValues(i, 'Record Header\Record Flags\ESL', 1);
-end;
-
 function Finalize: integer;
-var
-  i: integer;
-  fi: IwbFile;
 begin
   Result := 0;
-  for i := 0 to FileCount -1 do
-  begin
-    fi := FileByIndex(i);
-    if SameText(GetFileName(fi), 'IdrinthAutoPatch.esp') then
-      FinalizeFile(fi);
-    if SameText(GetFileName(fi), 'IdrinthAutoPatchLeveled.esp') then
-      FinalizeFile(fi);
-    if SameText(GetFileName(fi), 'IdrinthAutoPatchNPC.esp') then
-      FinalizeFile(fi);
-    if SameText(GetFileName(fi), 'IdrinthAutoPatchWorld.esp') then
-      FinalizeFile(fi);
-    if SameText(GetFileName(fi), 'IdrinthAutoPatchOther.esp') then
-      FinalizeFile(fi);
-    if SameText(GetFileName(fi), 'IdrinthAutoPatchItems.esp') then
-      FinalizeFile(fi);
-    if SameText(GetFileName(fi), 'IdrinthAutoPatchMagic.esp') then
-      FinalizeFile(fi);
-  end;
 end;
 
 end.
