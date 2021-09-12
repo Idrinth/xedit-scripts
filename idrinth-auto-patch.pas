@@ -4,6 +4,7 @@ var
   f: IwbFile;
   signatures, flags, blacklist, blockcopy, wordlists, objectlists: TStringList;
   cleanOften, allowInterrupt, groupedPatches: boolean;
+  originalFileCount: integer;
 
 function IsVersionWithCancelButton(): boolean;
 var
@@ -39,6 +40,7 @@ function Initialize(): integer;
 var
   buttonSelected: integer;
 begin
+  originalFileCount := FileCount;
   allowInterrupt := false;
   if not IsVersionWithCancelButton() then
   begin
@@ -213,7 +215,7 @@ begin
     padNum := '0' + padNum;
   full := 'IdrinthAutoPatch' + nme + padNum + '.esp';
   AddMessage('creating/finding '+full);
-  for i := 0 to FileCount -1 do
+  for i := originalFileCount to FileCount -1 do
   begin
     if SameText(GetFileName(FileByIndex(i)), full) then
     begin
