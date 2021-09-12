@@ -852,7 +852,7 @@ var
   fi: IwbFile;
 begin
   Result := 0;
-  for i := 0 to FileCount -1 do
+  for i := originalFileCount to FileCount -1 do
   begin
     fi := FileByIndex(i);
     if SameText(Copy(GetFileName(fi), 1, 16), 'IdrinthAutoPatch') then
