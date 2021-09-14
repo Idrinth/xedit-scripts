@@ -40,7 +40,7 @@ function Initialize(): integer;
 var
   buttonSelected: integer;
 begin
-  originalFileCount := FileCount;
+  originalFileCount := FileCount();
   allowInterrupt := false;
   if not IsVersionWithCancelButton() then
   begin
@@ -214,8 +214,7 @@ begin
   if Length(padNum) = 2 then
     padNum := '0' + padNum;
   full := 'IdrinthAutoPatch' + nme + padNum + '.esp';
-  AddMessage('creating/finding '+full);
-  for i := originalFileCount to FileCount -1 do
+  for i := FileCount -1 downto originalFileCount do
   begin
     if SameText(GetFileName(FileByIndex(i)), full) then
     begin
@@ -388,16 +387,95 @@ begin
     SetElementEditValues(patched, counter, ElementCount(patchedE));
 end;
 
+function ToJSONObject(Obj: TJsonObject; element: IInterface; prefix: string): TJsonObject;
+var
+  i: integer;
+  el: IInterface;
+begin
+  for i:=0 to ElementCount(element)-1 do
+  begin
+    el := ElementByIndex(element, i);
+    if ElementCount(el) > 0 then
+      ToJSONObject(Obj, el, prefix + Name(el)+'\')
+    else
+      Obj.S[prefix + Name(el)] := GetEditValue(el);
+  end;
+  Result := Obj
+end;
+
+function ToJSON(element: IInterface): string;
+var
+  i: integer;
+  Obj: TJsonObject;
+  el: IInterface;
+begin
+  Obj := ToJSONObject(TJsonObject.Create, element, '');
+  Result := Obj.ToJSON(true);
+  Obj.Free();
+end;
+
+procedure FromJSON(parent: IInterface; json: string);
+var
+  Obj: TJsonObject;
+  key, value: string;
+  i: integer;
+begin
+  Obj := TJsonObject.Parse(json);
+  for i := 0 to Obj.Count - 1 do
+  begin
+    key := Obj.Names[i];
+    value := Obj.S[key];
+    SetElementEditValues(parent, key, value);
+  end;
+  Obj.Free();
+end;
+
 procedure HandleObjectList(container: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
 var
   k: integer;
+  keywordsP, keywordsO, keywordsE: TStringList;
+  keyword: string;
+  el: IInterface;
 begin
   if Not Assigned(patchedE) then
     patchedE := Add(container, wrapper, true);
+  keywordsO := TStringList.Create;
+  keywordsE := TStringList.Create;
+  keywordsP := TStringList.Create;
+  keywordsP.Duplicates := dupIgnore;
+  for k := 0 to Pred(ElementCount(original)) do
+  begin
+    el := ElementByIndex(original, k);
+    keywordsO.Add(ToJSON(el));
+  end;
+  for k := 0 to Pred(ElementCount(patchedE)) do
+  begin
+    keyword := ToJSON(el);
+    if (keywordsP.IndexOf(keyword) = -1) AND (keyword <> '') then
+      keywordsP.Add(keyword);
+  end;
   for k := 0 to Pred(ElementCount(element)) do
   begin
-    ElementAssign(patchedE, HighInteger, ElementByIndex(element, k), False)
+    el := ElementByIndex(element, k);
+    keyword := ToJSON(el);
+    if (keywordsO.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) = -1) AND (keyword <> '') then
+      keywordsP.Add(keyword);
+    keywordsE.Add(keyword);
   end;
+  for k := 0 to keywordsO.Count -1 do
+  begin
+    keyword := keywordsO[k];
+    if (keywordsE.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) <> -1) then
+      keywordsP.Delete(keywordsP.IndexOf(keyword));
+  end;
+  RemoveElement(container, patchedE);
+  patchedE := Add(container, wrapper, true);
+  AddMessage(keywordsP.CommaText);
+  for k:=0 to keywordsP.Count -1 do
+  begin
+    FromJSON(ElementAssign(patchedE, HighInteger, el, False), keywordsP[k]);
+  end;
+  AddMessage(IntToStr(ElementCount(patchedE))+' Elements added');
   if counter <> '' then
     SetElementEditValues(container, counter, ElementCount(patchedE));
 end;
