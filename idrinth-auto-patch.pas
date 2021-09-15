@@ -380,9 +380,11 @@ begin
   patchedE := Add(patched, wrapper, true);
   for k:=0 to keywordsP.Count -1 do
   begin
-    if keywordsP[k] <> '' then
+    if (keywordsP[k] <> '') then
       SetEditValue(ElementAssign(patchedE, HighInteger, nil, False), keywordsP[k]);
   end;
+  if keywordsP.Count < ElementCount(patchedE) then
+    RemoveElement(patchedE, ElementByIndex(patchedE, 0));
   if counter <> '' then
     SetElementEditValues(patched, counter, ElementCount(patchedE));
 end;
@@ -470,12 +472,10 @@ begin
   end;
   RemoveElement(container, patchedE);
   patchedE := Add(container, wrapper, true);
-  AddMessage(keywordsP.CommaText);
   for k:=0 to keywordsP.Count -1 do
   begin
     FromJSON(ElementAssign(patchedE, HighInteger, el, False), keywordsP[k]);
   end;
-  AddMessage(IntToStr(ElementCount(patchedE))+' Elements added');
   if counter <> '' then
     SetElementEditValues(container, counter, ElementCount(patchedE));
 end;
