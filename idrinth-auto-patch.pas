@@ -159,10 +159,6 @@ begin
   objectlists.Add('XCLR');
   objectlists.Add('Leveled List Entries');
   objectlists.Add('Armature');
-  objectlists.Add('MODS');
-  objectlists.Add('MO2S');
-  objectlists.Add('MO3S');
-  objectlists.Add('MO4S');
   objectlists.Add('Perks');
   objectlists.Add('Skill Boosts');
   objectlists.Add('Skill Values');
@@ -193,6 +189,10 @@ begin
   blockcopy.Add('Coordinates');
   blockcopy.Add('Scripts');
   blockcopy.Add('Script Fragments');
+  blockcopy.Add('MODS');
+  blockcopy.Add('MO2S');
+  blockcopy.Add('MO3S');
+  blockcopy.Add('MO4S');
   blacklist := TStringList.Create;
   blacklist.Add('KSIZ');
   blacklist.Add('PRKZ');
@@ -373,7 +373,7 @@ begin
   for k := 0 to keywordsO.Count -1 do
   begin
     keyword := keywordsO[k];
-    if (keywordsE.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) <> -1) then
+    if (keywordsE.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) <> -1) AND (keywordsO.IndexOf(keyword) <> -1) then
       keywordsP.Delete(keywordsP.IndexOf(keyword));
   end;
   RemoveElement(patched, patchedE);
@@ -452,7 +452,7 @@ begin
   end;
   for k := 0 to Pred(ElementCount(patchedE)) do
   begin
-    keyword := ToJSON(el);
+    keyword := ToJSON(ElementByIndex(patchedE, k));
     if (keywordsP.IndexOf(keyword) = -1) AND (keyword <> '') then
       keywordsP.Add(keyword);
   end;
@@ -473,9 +473,7 @@ begin
   RemoveElement(container, patchedE);
   patchedE := Add(container, wrapper, true);
   for k:=0 to keywordsP.Count -1 do
-  begin
     FromJSON(ElementAssign(patchedE, HighInteger, el, False), keywordsP[k]);
-  end;
   if counter <> '' then
     SetElementEditValues(container, counter, ElementCount(patchedE));
 end;
