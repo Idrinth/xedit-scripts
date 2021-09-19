@@ -511,6 +511,31 @@ begin
   Result := keywords.Count = 0;
 end;
 
+function IsObjectListSame(list1: IInterface; list2: IInterface): boolean;
+var
+  k: integer;
+  keywords: TStringList;
+  keyword: string;
+begin
+  Result := false;
+  if ElementCount(list2) <> ElementCount(list1) then
+    Exit;
+  keywords := TStringList.Create;
+  for k := 0 to Pred(ElementCount(list1)) do
+  begin
+    keyword := ToJSON(ElementByIndex(list1, k));
+    keywords.Add(keyword);
+  end;
+  for k := 0 to Pred(ElementCount(list2)) do
+  begin
+    keyword := ToJSON(ElementByIndex(list2, k));
+    if keywords.IndexOf(keyword) = -1 then
+      Exit;
+    keywords.Delete(keywords.IndexOf(keyword));
+  end;
+  Result := keywords.Count = 0;
+end;
+
 function HasUnpatchedMaster(e: IInterface): boolean;
 var
   i, j, pos: integer;
@@ -650,7 +675,7 @@ begin
     end;
     if IsInList(objectlists, e1, one) then
     begin
-      if ElementCount(e1) <> ElementCount(e2) then
+      if NOT IsObjectListSame(e1, e2) then
         Exit;
       Continue;
     end;
