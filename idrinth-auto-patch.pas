@@ -44,13 +44,15 @@ begin
   allowInterrupt := false;
   if not IsVersionWithCancelButton() then
   begin
-    buttonSelected := MessageDlg('Do you want to be able to interrupt the script with pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
+    buttonSelected := MessageDlg('Do you want to be able to interrupt the script by pressing ESC?',mtConfirmation, [mbYes,mbNO], 0);
     allowInterrupt := (buttonSelected = mrYes);
   end;
   cleanOften := (FileCount > 255);
   groupedPatches := false;
   if cleanOften then
   begin
+    buttonSelected := MessageDlg('Do you want to clean masters often?',mtConfirmation, [mbYes,mbNO], 0);
+    cleanOften := (buttonSelected = mrYes);
     buttonSelected := MessageDlg('Do you want to build patches by record type?',mtConfirmation, [mbYes,mbNO], 0);
     groupedPatches := (buttonSelected = mrYes);
   end;
@@ -142,20 +144,21 @@ begin
   flags.Add('WRLD#DATA');
   flags.Add('CELL#DATA');
   flags.Add('CSTY#DATA');
+  flags.Add('LVLN#LVLF');
   wordlists := TStringList.Create;
   wordlists.Add('Perks');
   wordlists.Add('KWDA');
-  wordlists.Add('Effects');
   wordlists.Add('Actor Effects');
-  wordlists.Add('MODL');
+  wordlists.Add('ARMA#MODL');
   wordlists.Add('ACID');
   wordlists.Add('LCID');
   wordlists.Add('References');
   wordlists.Add('Movement Type Names');
   wordlists.Add('Packages');
+  wordlists.Add('Movement Type Names (sorted)');
   objectlists := TStringList.Create;
   objectlists.Add('Factions');
-  objectlists.Add('Actor Effects');
+  objectlists.Add('Effects');
   objectlists.Add('XCLR');
   objectlists.Add('Leveled List Entries');
   objectlists.Add('Armature');
@@ -167,7 +170,6 @@ begin
   objectlists.Add('Tint Layers');
   objectlists.Add('Tint Masks');
   objectlists.Add('Head Parts');
-  objectlists.Add('MO5S');
   objectlists.Add('Perks');
   objectlists.Add('MGEF#SNDD');
   objectlists.Add('Parts');
@@ -183,21 +185,25 @@ begin
   objectlists.Add('ACEC');
   objectlists.Add('ACPR');
   objectlists.Add('Items');
+  objectlists.Add('Sounds');
+  objectlists.Add('MODS');
+  objectlists.Add('MO2S');
+  objectlists.Add('MO3S');
+  objectlists.Add('MO4S');
+  objectlists.Add('MO5S');
+  objectlists.Add('Parts');
   blockcopy := TStringList.Create;
   blockcopy.Add('VMAD');
   blockcopy.Add('Conditions');
   blockcopy.Add('Coordinates');
   blockcopy.Add('Scripts');
   blockcopy.Add('Script Fragments');
-  blockcopy.Add('MODS');
-  blockcopy.Add('MO2S');
-  blockcopy.Add('MO3S');
-  blockcopy.Add('MO4S');
   blacklist := TStringList.Create;
   blacklist.Add('KSIZ');
   blacklist.Add('PRKZ');
   blacklist.Add('COCT');
   blacklist.Add('LLCT');
+  blacklist.Add('SPCT');
   Result := 0;
 end;
 
@@ -274,22 +280,21 @@ end;
 
 function IsInList(list: TStringList; element: IInterface; e: IInterface): boolean;
 var
-  nme: string;
   sig: string;
 begin
-  Result := false;
-  nme := Signature(element);
-  if nme = '' then
-    nme := BaseName(element);
-  if nme = '' then
-    nme := Name(element);
-  if nme = '' then
-    Exit;
   Result := true;
-  if list.IndexOf(nme) <> -1 then
+  if list.IndexOf(Signature(element)) <> -1 then
+    Exit;
+  if list.IndexOf(BaseName(element)) <> -1 then
+    Exit;
+  if list.IndexOf(Name(element)) <> -1 then
     Exit;
   sig := Signature(e);
-  if list.IndexOf(sig + '#' + nme) <> -1 then
+  if list.IndexOf(sig + '#' + Signature(element)) <> -1 then
+    Exit;
+  if list.IndexOf(sig + '#' + BaseName(element)) <> -1 then
+    Exit;
+  if list.IndexOf(sig + '#' + Name(element)) <> -1 then
     Exit;
   Result := false;
 end;
@@ -352,7 +357,6 @@ begin
   keywordsO := TStringList.Create;
   keywordsE := TStringList.Create;
   keywordsP := TStringList.Create;
-  keywordsP.Duplicates := dupIgnore;
   for k := 0 to Pred(ElementCount(original)) do
   begin
     keywordsO.Add(GetEditValue(ElementByIndex(original, k)));
@@ -444,7 +448,6 @@ begin
   keywordsO := TStringList.Create;
   keywordsE := TStringList.Create;
   keywordsP := TStringList.Create;
-  keywordsP.Duplicates := dupIgnore;
   for k := 0 to Pred(ElementCount(original)) do
   begin
     el := ElementByIndex(original, k);
@@ -712,7 +715,7 @@ end;
 
 function Process(e: IInterface): integer;
 var
-  i, j: integer;
+  i, j, k: integer;
   overrideRec: IInterface;
   winner: IInterface;
   patched: IwbElement;
@@ -792,6 +795,7 @@ begin
           begin
             if not IsWordListSame(original, element) then
               handleWordList(patched, patchedE, original, element, 'KWDA', 'KSIZ');
+            RemoveInvalidEntries(patched, 'KWDA', 'Keyword', 'KZIS');
             Continue;
           end;
           if IsElement(element, 'Perks') then
@@ -804,6 +808,7 @@ begin
           begin
             if not IsWordListSame(original, element) then
               handleWordList(patched, patchedE, original, element, 'MODL', '');
+            RemoveInvalidEntries(patched, 'MODL', 'MODL', '');
             Continue;
           end;
           if IsElement(element, 'Actor Effects') then
@@ -883,6 +888,41 @@ begin
             handleObjectList(container, patchedE, original, element, 'LCSR', '');
             Continue;
           end;
+          if IsElement(element, 'Items') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'Items', '');
+            Continue;
+          end;
+          if IsElement(element, 'Effects') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'Effects', '');
+            Continue;
+          end;
+          if IsElement(element, 'MODS') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'MODS', '');
+            Continue;
+          end;
+          if IsElement(element, 'MO2S') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'MO2S', '');
+            Continue;
+          end;
+          if IsElement(element, 'MO3S') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'MO3S', '');
+            Continue;
+          end;
+          if IsElement(element, 'MO4S') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'MO4S', '');
+            Continue;
+          end;
+          if IsElement(element, 'MO5S') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'MO5S', '');
+            Continue;
+          end;
           HandleBlockCopy(patchedE, element, original, container);
           Continue;
         end;
@@ -933,10 +973,6 @@ begin
       RemoveInvalidEntries(patched, 'Items', 'CNTO\Item', 'COCT');
     if (s = 'LVLI') or (s = 'LVLN') or (s = 'LVSP') then
       RemoveInvalidEntries(patched, 'Leveled List Entries', 'LVLO\Reference', 'LLCT');
-    if (s = 'KWDA') then
-      RemoveInvalidEntries(patched, 'KWDA', 'Keyword', 'KZIS');
-    if (s = 'MODL') then
-      RemoveInvalidEntries(patched, 'MODL', 'MODL', '');
     if Same(winner, patched) then
       Remove(patched);
   except
