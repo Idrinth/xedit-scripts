@@ -145,6 +145,7 @@ begin
   flags.Add('CELL#DATA');
   flags.Add('CSTY#DATA');
   flags.Add('LVLN#LVLF');
+  flags.Add('LVLI#LVLF');
   wordlists := TStringList.Create;
   wordlists.Add('Perks');
   wordlists.Add('KWDA');
@@ -299,20 +300,19 @@ begin
   Result := false;
 end;
 
-procedure AddAllMasters(ef: IwbFile);
+procedure AddAllMasters(e: IInterface);
 var
-  i, c, m: integer;
+  i: integer;
+  masters: TStringList;
 begin
-  c := MasterCount(ef);
-  AddMasterIfMissing(f, GetFileName(ef));
-  m := MasterCount(ef);
-  if NOT cleanOften AND (m = c) then
-    Exit;
-  for i := 0 to m - 1 do
-    AddAllMasters(MasterByIndex(ef, i));
+  AddMasterIfMissing(f, GetFileName(GetFile(e)), false);
+  masters := TStringList.Create;
+  ReportRequiredMasters(e, masters, true, false);
+  for i := 0 to masters.Count - 1 do
+    AddMasterIfMissing(f, masters[i], false);
 end;
 
-procedure GetPaths(e: IInterface;prefix: string;list: TStringList; base: IInterface);
+procedure GetPaths(e: IInterface; prefix: string; list: TStringList; base: IInterface);
 var
   i: integer;
   element: IInterface;
@@ -688,7 +688,7 @@ begin
   Result := true;
 end;
 
-procedure WrapMastersSafely(fi: IwbFile; sig: string);
+procedure WrapMastersSafely(sig: string; e: IInterface);
 var
   i: integer;
   success: boolean;
@@ -699,7 +699,7 @@ begin
   begin
     try
       SetFile(sig, i);
-      AddAllMasters(fi);
+      AddAllMasters(e);
       success := true;
     except
       on Ex: Exception do
@@ -746,7 +746,7 @@ begin
       Exit;
     if NOT HasUnpatchedMaster(e) then
       Exit;
-    WrapMastersSafely(GetFile(e), s);
+    WrapMastersSafely(s, e);
     winner := WinningOverride(e);
     AddMessage('  Processing '+Name(e));
     patched := wbCopyElementToFile(e, f, false, true);
@@ -757,7 +757,7 @@ begin
       overrideRecFile := GetFile(overrideRec);
       if SameText(GetFileName(overrideRecFile), GetFileName(f)) then
         Continue;
-      AddAllMasters(overrideRecFile);
+      AddAllMasters(overrideRec);
       for j := 0 to Pred(MasterCount(overrideRecFile)) do
         if ElementExists(MasterByIndex(overrideRecFile, j), Name(e)) then
           previous = ElementByName(MasterByIndex(overrideRecFile, j), Name(e));
@@ -804,46 +804,8 @@ begin
               handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ');
             Continue;
           end;
-          if IsElement(element, 'MODL') then
-          begin
-            if not IsWordListSame(original, element) then
-              handleWordList(patched, patchedE, original, element, 'MODL', '');
-            RemoveInvalidEntries(patched, 'MODL', 'MODL', '');
-            Continue;
-          end;
-          if IsElement(element, 'Actor Effects') then
-          begin
-            if not IsWordListSame(original, element) then
-              handleWordList(patched, patchedE, original, element, 'Actor Effects', '');
-            Continue;
-          end;
-          if IsElement(element, 'Effects') then
-          begin
-            if not IsWordListSame(original, element) then
-              handleWordList(patched, patchedE, original, element, 'Effects', '');
-            Continue;
-          end;
-          if IsElement(element, 'LCID') then
-          begin
-            handleWordList(container, patchedE, original, element, 'LCID', '');
-            Continue;
-          end;
-          if IsElement(element, 'ACID') then
-          begin
-            handleWordList(container, patchedE, original, element, 'ACID', '');
-            Continue;
-          end;
-          if IsElement(element, 'Movement Type Names') then
-          begin
-            handleWordList(container, patchedE, original, element, 'Movement Type Names', '');
-            Continue;
-          end;
-          if IsElement(element, 'Packages') then
-          begin
-            handleWordList(container, patchedE, original, element, 'Packages', '');
-            Continue;
-          end;
-          HandleBlockCopy(patchedE, element, original, container);
+          if not IsWordListSame(original, element) then
+            handleWordList(patched, patchedE, original, element, Name(element), '');
           Continue;
         end;
         if IsInList(objectlists, element, e) then
@@ -853,77 +815,7 @@ begin
             handleObjectList(container, patchedE, original, element, 'Leveled List Entries', 'LLCT');
             Continue;
           end;
-          if IsElement(element, 'Perks') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'Perks', '');
-            Continue;
-          end;
-          if IsElement(element, 'ACPR') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'ACPR', '');
-            Continue;
-          end;
-          if IsElement(element, 'LCPR') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'LCPR', '');
-            Continue;
-          end;
-          if IsElement(element, 'ACUN') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'ACUN', '');
-            Continue;
-          end;
-          if IsElement(element, 'LCUN') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'LCUN', '');
-            Continue;
-          end;
-          if IsElement(element, 'ACSR') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'ACSR', '');
-            Continue;
-          end;
-          if IsElement(element, 'LCSR') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'LCSR', '');
-            Continue;
-          end;
-          if IsElement(element, 'Items') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'Items', '');
-            Continue;
-          end;
-          if IsElement(element, 'Effects') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'Effects', '');
-            Continue;
-          end;
-          if IsElement(element, 'MODS') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'MODS', '');
-            Continue;
-          end;
-          if IsElement(element, 'MO2S') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'MO2S', '');
-            Continue;
-          end;
-          if IsElement(element, 'MO3S') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'MO3S', '');
-            Continue;
-          end;
-          if IsElement(element, 'MO4S') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'MO4S', '');
-            Continue;
-          end;
-          if IsElement(element, 'MO5S') then
-          begin
-            handleObjectList(container, patchedE, original, element, 'MO5S', '');
-            Continue;
-          end;
-          HandleBlockCopy(patchedE, element, original, container);
+          handleObjectList(container, patchedE, original, element, Name(element), '');
           Continue;
         end;
         if IsInList(blockcopy, element, e) then
@@ -979,7 +871,7 @@ begin
     on Ex : Exception do
       AddMessage('    ' + Ex.ClassName+' error raised, with message : '+Ex.Message);
   end;
-  if cleanOften then
+  if cleanOften and (MasterCount(f) > 100) then
     CleanMasters(f);
 end;
 
@@ -994,8 +886,7 @@ begin
     fi := FileByIndex(i);
     if SameText(Copy(GetFileName(fi), 1, 16), 'IdrinthAutoPatch') then
     begin
-      if not cleanOften then
-        CleanMasters(fi);
+      CleanMasters(fi);
       SortMasters(fi);
     end;
   end;
