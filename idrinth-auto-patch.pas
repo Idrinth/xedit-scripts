@@ -3,7 +3,7 @@ unit userscript;
 var
   f: IwbFile;
   signatures, flags, blacklist, blockcopy, wordlists, objectlists: TStringList;
-  cleanOften, allowInterrupt, groupedPatches: boolean;
+  cleanOften, cleanAgressive, allowInterrupt, groupedPatches: boolean;
   originalFileCount: integer;
 
 function IsVersionWithCancelButton(): boolean;
@@ -53,6 +53,14 @@ begin
   begin
     buttonSelected := MessageDlg('Do you want to clean masters often?',mtConfirmation, [mbYes,mbNO], 0);
     cleanOften := (buttonSelected = mrYes);
+    if cleanOften then
+    begin
+      if (FileCount > 510) then
+      begin
+        buttonSelected := MessageDlg('Do you want to clean masters extremely often?',mtConfirmation, [mbYes,mbNO], 0);
+        cleanAgressive := (buttonSelected = mrYes);
+      end;
+    end;
     buttonSelected := MessageDlg('Do you want to build patches by record type?',mtConfirmation, [mbYes,mbNO], 0);
     groupedPatches := (buttonSelected = mrYes);
   end;
@@ -64,7 +72,7 @@ begin
     signatures.Add('LVSP');//leveled spell
     signatures.Add('LVLN');//leveled npc
   end;
-  buttonSelected := MessageDlg('Do you want to patch items? (medium success rate)',mtConfirmation, [mbYes,mbNO], 0);
+  buttonSelected := MessageDlg('Do you want to patch items? (pretty safe)',mtConfirmation, [mbYes,mbNO], 0);
   if buttonSelected = mrYes then
   begin
     signatures.Add('WEAP');
@@ -157,6 +165,8 @@ begin
   wordlists.Add('Movement Type Names');
   wordlists.Add('Packages');
   wordlists.Add('Movement Type Names');
+  wordlists.Add('CELL#XCLR');
+  wordlists.Add('NPC_#Head Parts');
   objectlists := TStringList.Create;
   objectlists.Add('Factions');
   objectlists.Add('Effects');
@@ -695,8 +705,10 @@ end;
 
 procedure WrapMastersSafely(sig: string; e: IInterface);
 var
-  i: integer;
+  i,j: integer;
   success: boolean;
+  masters: TStringList;
+  overrideRec: IInterface;
 begin
   success := false;
   i := 0;
@@ -704,16 +716,30 @@ begin
   begin
     try
       SetFile(sig, i);
-      AddAllMasters(e);
       success := true;
     except
       on Ex: Exception do
         success := false;
     end;
 
-    success := success and (MasterCount(f) < 200);
+    masters := TStringList.Create;
+    for j := 0 to Pred(OverrideCount(e)) do
+    begin
+      overrideRec := OverrideByIndex(e, j);
+      ReportRequiredMasters(overrideRec, masters, false, true);
+    end;
+    for j := Pred(masters.Count) downto 0 do
+    begin
+      if (masters.IndexOf(masters[j]) <> j) then
+        masters.Delete(j);
+    end;
+    AddMessage('Total Masters: '+IntToStr(masters.Count));
+
+    success := success and (MasterCount(f)+masters.Count < 254);
     if not success then
       CleanMasters(f);
+    else
+      AddAllMasters(e);
     i := i +1;
   end;
 end;
@@ -746,7 +772,7 @@ begin
   s := Signature(e);
   if signatures.IndexOf(s) = -1 then
     Exit;
-  if OverrideCount(e) < 2 then
+  if OverrideCount(e) < 3 then//because first override is initial element
     Exit;
   if NOT HasUnpatchedMaster(e) then
     Exit;
@@ -754,13 +780,15 @@ begin
   winner := WinningOverride(e);
   AddMessage('  Processing '+Name(e));
   patched := wbCopyElementToFile(e, f, false, true);
-  for i := 0 to Pred(OverrideCount(e)) do
+  for i := 1 to Pred(OverrideCount(e)) do
   begin
     overrideRec := OverrideByIndex(e, i);
     previous := e;
     overrideRecFile := GetFile(overrideRec);
     if SameText(GetFileName(overrideRecFile), GetFileName(f)) then
       Continue;
+    if cleanAgressive then
+      CleanMasters(f);
     AddAllMasters(overrideRec);
     for j := 0 to Pred(MasterCount(overrideRecFile)) do
       if ElementExists(MasterByIndex(overrideRecFile, j), Name(e)) then
