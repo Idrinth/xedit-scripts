@@ -733,12 +733,9 @@ begin
       if (masters.IndexOf(masters[j]) <> j) then
         masters.Delete(j);
     end;
-    AddMessage('Total Masters: '+IntToStr(masters.Count));
 
     success := success and (MasterCount(f)+masters.Count < 254);
-    if not success then
-      CleanMasters(f);
-    else
+    if success then
       AddAllMasters(e);
     i := i +1;
   end;
