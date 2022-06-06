@@ -809,7 +809,7 @@ begin
       container := CreateElements(patched, path, element);
       if not Assigned(container) then
         container := patched;
-      if NOT Assigned(patchedE) AND Assigned(element) then
+      if (NOT Assigned(patchedE)) AND Assigned(element) then
       begin
         patchedE := wbCopyElementToRecord(element, container, false, true);
         if NOT Assigned(patchedE) then
