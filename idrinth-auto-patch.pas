@@ -910,7 +910,6 @@ begin
     RemoveInvalidEntries(patched, 'Leveled List Entries', 'LVLO\Reference', 'LLCT');
   if Same(winner, patched) then
     Remove(patched);
-  end;
   if cleanOften and (MasterCount(f) > 100) then
     CleanMasters(f);
 end;
