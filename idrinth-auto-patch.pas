@@ -2,7 +2,7 @@ unit userscript;
 
 var
   f: IwbFile;
-  signatures, flags, blacklist, blockcopy, wordlists, objectlists: TStringList;
+  signatures, flags, blacklist, blockcopy, wordlists, objectlists, pseudolists: TStringList;
   cleanOften, allowInterrupt, groupedPatches: boolean;
   originalFileCount: integer;
 
@@ -146,6 +146,9 @@ begin
   flags.Add('CSTY#DATA');
   flags.Add('LVLN#LVLF');
   flags.Add('LVLI#LVLF');
+  pseudolists := TStringList.Create;
+  pseudolists.Add('ARMA#MODL');
+  pseudolists.Add('ARMO#MODL');
   wordlists := TStringList.Create;
   wordlists.Add('Perks');
   wordlists.Add('KWDA');
@@ -851,6 +854,21 @@ begin
         end;
         if not IsWordListSame(original, element) then
           handleWordList(patched, patchedE, original, element, Name(element), '', False);
+        Continue;
+      end;
+      if IsInList(pseudolists, element, e) then
+      begin
+        end;
+        if IsElement(element, 'ARMA#MODL') then
+        begin
+          handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '', true);
+          Continue;
+        end;
+        if IsElement(element, 'ARMO#MODL') then
+        begin
+          handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '', true);
+          Continue;
+        end;
         Continue;
       end;
       if IsInList(objectlists, element, e) then
