@@ -823,14 +823,14 @@ begin
           if IsElement(element, 'KWDA') then
           begin
             if not IsWordListSame(original, element) then
-              handleWordList(patched, patchedE, original, element, 'KWDA', 'KSIZ');
+              handleWordList(patched, patchedE, original, element, 'KWDA', 'KSIZ', False);
             RemoveInvalidEntries(patched, 'KWDA', 'Keyword', 'KZIS');
             Continue;
           end;
           if IsElement(element, 'Perks') then
           begin
             if not IsWordListSame(original, element) then
-              handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ');
+              handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ', False);
             Continue;
           end;
           if IsElement(element, 'ARMA#MODL') then
@@ -844,7 +844,7 @@ begin
             Continue;
           end;
           if not IsWordListSame(original, element) then
-            handleWordList(patched, patchedE, original, element, Name(element), '');
+            handleWordList(patched, patchedE, original, element, Name(element), '', False);
           Continue;
         end;
         if IsInList(objectlists, element, e) then
