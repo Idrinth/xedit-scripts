@@ -207,6 +207,7 @@ begin
   blacklist.Add('COCT');
   blacklist.Add('LLCT');
   blacklist.Add('SPCT');
+  blacklist.Add('ARMA#Unused');
   Result := 0;
 end;
 
