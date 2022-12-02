@@ -207,7 +207,7 @@ begin
   blacklist.Add('COCT');
   blacklist.Add('LLCT');
   blacklist.Add('SPCT');
-  blacklist.Add('BODT - Body Template\Unused');
+  blacklist.Add('BOD2 - Biped Body Template\Unused');
   Result := 0;
 end;
 
