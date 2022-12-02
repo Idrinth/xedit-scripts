@@ -815,9 +815,8 @@ begin
         container := patched;
       if NOT Assigned(patchedE) AND Assigned(element) AND Assigned(container) then
       begin
+        AddMessage('      Copying element to '+path);
         patchedE := wbCopyElementToRecord(element, container, false, true);
-        if NOT Assigned(patchedE) then
-          AddMessage('      Failed to copy element to '+path);
         Continue;
       end;
       if IsInList(wordlists, element, e) then
