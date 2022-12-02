@@ -714,7 +714,7 @@ begin
   end;
 end;
 
-function isPatched(filename: string, e: IInterface): boolean;
+function isPatched(filename: string; e: IInterface): boolean;
 var
   i, j: integer;
   fn, cfn: string;
@@ -781,7 +781,7 @@ begin
         Continue;
       if isPatched(GetFileName(overrideRecFile), e) then
       begin
-        AddMessage('  Skipping none-leaf '+GetFileName(overrideRecFile));
+        AddMessage('  Skipping none-leaf ' + GetFileName(overrideRecFile));
         Continue;
       end;
       AddAllMasters(overrideRec);
@@ -832,9 +832,8 @@ begin
             Continue;
           end;
           if IsElement(element, 'ARMA#MODL') then
-            begin
-            if not IsWordListSame(original, element) then
-              handleWordList(patched, patchedE, original, 'Armature', 'MODL', '');
+          begin
+            handleWordList(patched, patchedE, original, 'Armature', 'MODL', '');
             Continue;
           end;
           if not IsWordListSame(original, element) then
