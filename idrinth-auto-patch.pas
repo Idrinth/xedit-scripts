@@ -309,7 +309,7 @@ var
 begin
   AddMasterIfMissing(f, GetFileName(GetFile(e)), false);
   masters := TStringList.Create;
-  ReportRequiredMasters(e, masters, true, false);
+  ReportRequiredMasters(e, masters, true, true);
   for i := 0 to masters.Count - 1 do
     AddMasterIfMissing(f, masters[i], false);
 end;
@@ -350,7 +350,7 @@ begin
   end;
 end;
 
-procedure HandleWordList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
+procedure HandleWordList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string; isFalseWrapper: boolean = False);
 var
   keywordsP, keywordsO, keywordsE: TStringList;
   k: integer;
@@ -382,17 +382,23 @@ begin
     if (keywordsE.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) <> -1) AND (keywordsO.IndexOf(keyword) <> -1) then
       keywordsP.Delete(keywordsP.IndexOf(keyword));
   end;
-  RemoveElement(patched, patchedE);
-  patchedE := Add(patched, wrapper, true);
+  if not isFalseWrapper then
+  begin
+    RemoveElement(patched, patchedE);
+    patchedE := Add(patched, wrapper, true);
+  end;
   for k:=0 to keywordsP.Count -1 do
   begin
     if (keywordsP[k] <> '') then
       SetEditValue(ElementAssign(patchedE, HighInteger, nil, False), keywordsP[k]);
   end;
-  if keywordsP.Count < ElementCount(patchedE) then
-    RemoveElement(patchedE, ElementByIndex(patchedE, 0));
-  if counter <> '' then
-    SetElementEditValues(patched, counter, ElementCount(patchedE));
+  if not isFalseWrapper then
+  begin
+    if keywordsP.Count < ElementCount(patchedE) then
+      RemoveElement(patchedE, ElementByIndex(patchedE, 0));
+    if counter <> '' then
+      SetElementEditValues(patched, counter, ElementCount(patchedE));
+  end;
 end;
 
 function ToJSONObject(Obj: TJsonObject; element: IInterface; prefix: string): TJsonObject;
@@ -771,7 +777,7 @@ begin
       Exit;
     WrapMastersSafely(s, e);
     winner := WinningOverride(e);
-    AddMessage('  Processing '+Name(e));
+    AddMessage('  Processing ' + Name(e));
     patched := wbCopyElementToFile(e, f, false, true);
     for i := 0 to Pred(OverrideCount(e)) do
     begin
@@ -829,12 +835,12 @@ begin
           end;
           if IsElement(element, 'ARMA#MODL') then
           begin
-            handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '');
+            handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '', true);
             Continue;
           end;
           if IsElement(element, 'ARMO#MODL') then
           begin
-            handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '');
+            handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '', true);
             Continue;
           end;
           if not IsWordListSame(original, element) then
