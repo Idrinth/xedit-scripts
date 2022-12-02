@@ -834,12 +834,12 @@ begin
           end;
           if IsElement(element, 'ARMA#MODL') then
           begin
-            handleWordList(patched, patchedE, original, ElementByPath(original, 'Additional Races'), 'MODL', '');
+            handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '');
             Continue;
           end;
           if IsElement(element, 'ARMO#MODL') then
           begin
-            handleWordList(patched, patchedE, original, ElementByPath(original, 'Armature'), 'MODL', '');
+            handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '');
             Continue;
           end;
           if not IsWordListSame(original, element) then
