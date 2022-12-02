@@ -151,6 +151,7 @@ begin
   wordlists.Add('KWDA');
   wordlists.Add('Actor Effects');
   wordlists.Add('ARMA#MODL');
+  wordlists.Add('ARMO#MODL');
   wordlists.Add('ACID');
   wordlists.Add('LCID');
   wordlists.Add('References');
@@ -829,11 +830,6 @@ begin
           begin
             if not IsWordListSame(original, element) then
               handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ');
-            Continue;
-          end;
-          if IsElement(element, 'ARMA#MODL') then
-          begin
-            handleWordList(patched, patchedE, original, 'Armature', 'MODL', '');
             Continue;
           end;
           if not IsWordListSame(original, element) then
