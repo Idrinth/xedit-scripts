@@ -727,7 +727,7 @@ begin
     for j := 0 to MasterCount(overrideRecFile) - 1 do
     begin
       fn := GetFileName(MasterByIndex(overrideRecFile, j));
-      if not Same(cfn, filename) and Same(fn, filename) then
+      if not SameText(cfn, filename) and SameText(fn, filename) then
         Result := true;
         Exit;
     end;
