@@ -392,7 +392,7 @@ begin
     if (keywordsP[k] <> '') then
     begin
       if isFalseWrapper then
-        SetEditValue(ElementAssign(patchedE, LowInteger, nil, False), keywordsP[k])
+        SetEditValue(ElementAssign(patched, LowInteger, nil, False), keywordsP[k])
       else
         SetEditValue(ElementAssign(patchedE, HighInteger, nil, False), keywordsP[k])
     end;
