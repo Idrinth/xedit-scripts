@@ -786,11 +786,6 @@ begin
         Continue;
       end;
       AddAllMasters(overrideRec);
-      for j := 0 to Pred(MasterCount(overrideRecFile)) do
-        if ElementExists(MasterByIndex(overrideRecFile, j), Name(e)) then
-          previous = ElementByName(MasterByIndex(overrideRecFile, j), Name(e));
-      if Same(previous, overrideRec) then
-        Continue;
       paths := TStringList.Create;
       GetPaths(e, '', paths, e);
       GetPaths(previous, '', paths, e);
