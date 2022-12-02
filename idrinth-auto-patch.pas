@@ -154,8 +154,6 @@ begin
   wordlists.Add('Perks');
   wordlists.Add('KWDA');
   wordlists.Add('Actor Effects');
-  wordlists.Add('ARMA#MODL');
-  wordlists.Add('ARMO#MODL');
   wordlists.Add('ACID');
   wordlists.Add('LCID');
   wordlists.Add('References');
