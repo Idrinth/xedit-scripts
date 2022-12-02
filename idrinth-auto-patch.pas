@@ -3,7 +3,7 @@ unit userscript;
 var
   f: IwbFile;
   signatures, flags, blacklist, blockcopy, wordlists, objectlists: TStringList;
-  cleanOften, cleanAgressive, allowInterrupt, groupedPatches: boolean;
+  cleanOften, allowInterrupt, groupedPatches: boolean;
   originalFileCount: integer;
 
 function IsVersionWithCancelButton(): boolean;
@@ -53,14 +53,6 @@ begin
   begin
     buttonSelected := MessageDlg('Do you want to clean masters often?',mtConfirmation, [mbYes,mbNO], 0);
     cleanOften := (buttonSelected = mrYes);
-    if cleanOften then
-    begin
-      if (FileCount > 510) then
-      begin
-        buttonSelected := MessageDlg('Do you want to clean masters extremely often?',mtConfirmation, [mbYes,mbNO], 0);
-        cleanAgressive := (buttonSelected = mrYes);
-      end;
-    end;
     buttonSelected := MessageDlg('Do you want to build patches by record type?',mtConfirmation, [mbYes,mbNO], 0);
     groupedPatches := (buttonSelected = mrYes);
   end;
@@ -72,7 +64,7 @@ begin
     signatures.Add('LVSP');//leveled spell
     signatures.Add('LVLN');//leveled npc
   end;
-  buttonSelected := MessageDlg('Do you want to patch items? (pretty safe)',mtConfirmation, [mbYes,mbNO], 0);
+  buttonSelected := MessageDlg('Do you want to patch items? (medium success rate)',mtConfirmation, [mbYes,mbNO], 0);
   if buttonSelected = mrYes then
   begin
     signatures.Add('WEAP');
@@ -158,15 +150,13 @@ begin
   wordlists.Add('Perks');
   wordlists.Add('KWDA');
   wordlists.Add('Actor Effects');
-  wordlists.Add('ARMA#Additional Races');
+  wordlists.Add('ARMA#MODL');
   wordlists.Add('ACID');
   wordlists.Add('LCID');
   wordlists.Add('References');
   wordlists.Add('Movement Type Names');
   wordlists.Add('Packages');
-  wordlists.Add('Movement Type Names');
-  wordlists.Add('CELL#XCLR');
-  wordlists.Add('NPC_#Head Parts');
+  wordlists.Add('Movement Type Names (sorted)');
   objectlists := TStringList.Create;
   objectlists.Add('Factions');
   objectlists.Add('Effects');
@@ -209,13 +199,13 @@ begin
   blockcopy.Add('Coordinates');
   blockcopy.Add('Scripts');
   blockcopy.Add('Script Fragments');
+  blockcopy.Add('WRLD#MNAM - Map Data');
   blacklist := TStringList.Create;
   blacklist.Add('KSIZ');
   blacklist.Add('PRKZ');
   blacklist.Add('COCT');
   blacklist.Add('LLCT');
   blacklist.Add('SPCT');
-  blacklist.Add('BOD2 - Biped Body Template\Unused');
   Result := 0;
 end;
 
@@ -318,7 +308,7 @@ var
 begin
   AddMasterIfMissing(f, GetFileName(GetFile(e)), false);
   masters := TStringList.Create;
-  ReportRequiredMasters(e, masters, false, true);
+  ReportRequiredMasters(e, masters, true, false);
   for i := 0 to masters.Count - 1 do
     AddMasterIfMissing(f, masters[i], false);
 end;
@@ -675,10 +665,6 @@ begin
   begin
     e1 := ElementByPath(one, paths[i]);
     e2 := ElementByPath(two, paths[i]);
-    if not Assigned(e1) then
-      Exit;
-    if not Assigned(e2) then
-      Exit;
     if IsInList(flags, e1, one) then
     begin
       if GetNativeValue(e1) <> GetNativeValue(e2) then
@@ -705,10 +691,8 @@ end;
 
 procedure WrapMastersSafely(sig: string; e: IInterface);
 var
-  i,j: integer;
+  i: integer;
   success: boolean;
-  masters: TStringList;
-  overrideRec: IInterface;
 begin
   success := false;
   i := 0;
@@ -716,29 +700,39 @@ begin
   begin
     try
       SetFile(sig, i);
+      AddAllMasters(e);
       success := true;
     except
       on Ex: Exception do
         success := false;
     end;
 
-    masters := TStringList.Create;
-    for j := 0 to Pred(OverrideCount(e)) do
-    begin
-      overrideRec := OverrideByIndex(e, j);
-      ReportRequiredMasters(overrideRec, masters, false, true);
-    end;
-    for j := Pred(masters.Count) downto 0 do
-    begin
-      if (masters.IndexOf(masters[j]) <> j) then
-        masters.Delete(j);
-    end;
-
-    success := success and (MasterCount(f)+masters.Count < 254);
-    if success then
-      AddAllMasters(e);
+    success := success and (MasterCount(f) < 200);
+    if not success then
+      CleanMasters(f);
     i := i +1;
   end;
+end;
+
+function isPatched(filename: string, e: IInterface): boolean;
+var
+  i, j: integer;
+  fn, cfn: string;
+  overrideRecFile: IwbFile;
+begin
+  cfn := GetFileName(f);
+  for i := 0 to Pred(OverrideCount(e)) do
+  begin
+    overrideRecFile := GetFile(OverrideByIndex(e, i));
+    for j := 0 to MasterCount(overrideRecFile) - 1 do
+    begin
+      fn := GetFileName(MasterByIndex(overrideRecFile, j));
+      if not Same(cfn, filename) and Same(fn, filename) then
+        Result := true;
+        Exit;
+    end;
+  end;
+  Result := false;
 end;
 
 function Process(e: IInterface): integer;
@@ -764,138 +758,152 @@ begin
     Exit;
   end;
   Result := 0;
-  if not IsMaster(e) then
-    Exit;
-  s := Signature(e);
-  if signatures.IndexOf(s) = -1 then
-    Exit;
-  if OverrideCount(e) < 3 then//because first override is initial element
-    Exit;
-  if NOT HasUnpatchedMaster(e) then
-    Exit;
-  WrapMastersSafely(s, e);
-  winner := WinningOverride(e);
-  AddMessage('  Processing '+Name(e));
-  patched := wbCopyElementToFile(e, f, false, true);
-  for i := 1 to Pred(OverrideCount(e)) do
-  begin
-    overrideRec := OverrideByIndex(e, i);
-    previous := e;
-    overrideRecFile := GetFile(overrideRec);
-    if SameText(GetFileName(overrideRecFile), GetFileName(f)) then
-      Continue;
-    if cleanAgressive then
-      CleanMasters(f);
-    AddAllMasters(overrideRec);
-    for j := 0 to Pred(MasterCount(overrideRecFile)) do
-      if ElementExists(MasterByIndex(overrideRecFile, j), Name(e)) then
-        previous = ElementByName(MasterByIndex(overrideRecFile, j), Name(e));
-    if Same(previous, overrideRec) then
-      Continue;
-    paths := TStringList.Create;
-    GetPaths(e, '', paths, e);
-    GetPaths(previous, '', paths, e);
-    GetPaths(overrideRec, '', paths, e);
-    if paths.Count = 0 then
-      Continue;
-    for j := 0 to paths.Count-1 do
+  try
+    if not IsMaster(e) then
+      Exit;
+    s := Signature(e);
+    if signatures.IndexOf(s) = -1 then
+      Exit;
+    if OverrideCount(e) < 2 then
+      Exit;
+    if NOT HasUnpatchedMaster(e) then
+      Exit;
+    WrapMastersSafely(s, e);
+    winner := WinningOverride(e);
+    AddMessage('  Processing '+Name(e));
+    patched := wbCopyElementToFile(e, f, false, true);
+    for i := 0 to Pred(OverrideCount(e)) do
     begin
-      path := paths[j];
-      if blacklist.IndexOf(path) <> -1 then
+      overrideRec := OverrideByIndex(e, i);
+      previous := e;
+      overrideRecFile := GetFile(overrideRec);
+      if SameText(GetFileName(overrideRecFile), GetFileName(f)) then
         Continue;
-      element := ElementByPath(overrideRec, path);
-      original := ElementByPath(previous, path);
-      patchedE := ElementByPath(patched, path);
-      container := CreateElements(patched, path, element);
-      if not Assigned(container) then
-        container := patched;
-      if (NOT Assigned(patchedE)) AND Assigned(element) then
+      if isPatched(GetFileName(overrideRecFile), e) then
       begin
-        patchedE := wbCopyElementToRecord(element, container, false, true);
-        if NOT Assigned(patchedE) then
-          AddMessage('      Failed to copy element to '+path);
+        AddMessage('  Skipping none-leaf '+GetFileName(overrideRecFile));
         Continue;
       end;
-      if IsInList(wordlists, element, e) then
+      AddAllMasters(overrideRec);
+      for j := 0 to Pred(MasterCount(overrideRecFile)) do
+        if ElementExists(MasterByIndex(overrideRecFile, j), Name(e)) then
+          previous = ElementByName(MasterByIndex(overrideRecFile, j), Name(e));
+      if Same(previous, overrideRec) then
+        Continue;
+      paths := TStringList.Create;
+      GetPaths(e, '', paths, e);
+      GetPaths(previous, '', paths, e);
+      GetPaths(overrideRec, '', paths, e);
+      if paths.Count = 0 then
+        Continue;
+      for j := 0 to paths.Count-1 do
       begin
-        if NOT Assigned(original) AND NOT Assigned(element) then
+        path := paths[j];
+        if blacklist.IndexOf(path) <> -1 then
           Continue;
-        if IsElement(element, 'KWDA') then
+        element := ElementByPath(overrideRec, path);
+        original := ElementByPath(previous, path);
+        patchedE := ElementByPath(patched, path);
+        container := CreateElements(patched, path, element);
+        if not Assigned(container) then
+          container := patched;
+        if NOT Assigned(patchedE) AND Assigned(element) AND Assigned(container) then
         begin
+          patchedE := wbCopyElementToRecord(element, container, false, true);
+          if NOT Assigned(patchedE) then
+            AddMessage('      Failed to copy element to '+path);
+          Continue;
+        end;
+        if IsInList(wordlists, element, e) then
+        begin
+          if NOT Assigned(original) AND NOT Assigned(element) then
+            Continue;
+          if IsElement(element, 'KWDA') then
+          begin
+            if not IsWordListSame(original, element) then
+              handleWordList(patched, patchedE, original, element, 'KWDA', 'KSIZ');
+            RemoveInvalidEntries(patched, 'KWDA', 'Keyword', 'KZIS');
+            Continue;
+          end;
+          if IsElement(element, 'Perks') then
+          begin
+            if not IsWordListSame(original, element) then
+              handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ');
+            Continue;
+          end;
+          if IsElement(element, 'ARMA#MODL') then
+            begin
+            if not IsWordListSame(original, element) then
+              handleWordList(patched, patchedE, original, 'Armature', 'MODL', '');
+            Continue;
+          end;
           if not IsWordListSame(original, element) then
-            handleWordList(patched, patchedE, original, element, 'KWDA', 'KSIZ');
-          RemoveInvalidEntries(patched, 'KWDA', 'Keyword', 'KZIS');
+            handleWordList(patched, patchedE, original, element, Name(element), '');
           Continue;
         end;
-        if IsElement(element, 'Perks') then
+        if IsInList(objectlists, element, e) then
         begin
-          if not IsWordListSame(original, element) then
-            handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ');
+          if IsElement(element, 'Leveled List Entries') then
+          begin
+            handleObjectList(container, patchedE, original, element, 'Leveled List Entries', 'LLCT');
+            Continue;
+          end;
+          handleObjectList(container, patchedE, original, element, Name(element), '');
           Continue;
         end;
-        if not IsWordListSame(original, element) then
-          handleWordList(patched, patchedE, original, element, Name(element), '');
-        Continue;
-      end;
-      if IsInList(objectlists, element, e) then
-      begin
-        if IsElement(element, 'Leveled List Entries') then
+        if IsInList(blockcopy, element, e) then
         begin
-          handleObjectList(container, patchedE, original, element, 'Leveled List Entries', 'LLCT');
+          HandleBlockCopy(patchedE, element, original, container);
           Continue;
         end;
-        handleObjectList(container, patchedE, original, element, Name(element), '');
-        Continue;
-      end;
-      if IsInList(blockcopy, element, e) then
-      begin
-        HandleBlockCopy(patchedE, element, original, container);
-        Continue;
-      end;
-      if IsInList(flags, element, e) then
-      begin
-        if NOT Assigned(patchedE) then
-          patchedE := Add(patched, Signature(element), true);
-        MergeFlags(patchedE, original, element);
-        Continue;
-      end;
-      if NOT Assigned(element) AND Assigned(patchedE) AND Assigned(original) then
-      begin
-        RemoveElement(patched, patchedE);
-        Continue;
-      end;
-      if GetElementEditValues(overrideRec, path) <> GetElementEditValues(previous, path) then
-      begin
-        try
-          SetElementEditValues(patched, path, StrToFloat(GetElementEditValues(overrideRec, path)));
-        except
-          on Ex : Exception do
-            ignore();
+        if IsInList(flags, element, e) then
+        begin
+          if NOT Assigned(patchedE) then
+            patchedE := Add(patched, Signature(element), true);
+          MergeFlags(patchedE, original, element);
+          Continue;
         end;
-        if GetElementEditValues(overrideRec, path) <> GetElementEditValues(patched, path) then
+        if NOT Assigned(element) AND Assigned(patchedE) AND Assigned(original) then
+        begin
+          RemoveElement(patched, patchedE);
+          Continue;
+        end;
+        if GetElementEditValues(overrideRec, path) <> GetElementEditValues(previous, path) then
+        begin
           try
-            SetElementEditValues(patched, path,  Round(StrToFloat(GetElementEditValues(overrideRec, path))));
+            SetElementEditValues(patched, path, StrToFloat(GetElementEditValues(overrideRec, path)));
           except
             on Ex : Exception do
               ignore();
           end;
-        if GetElementEditValues(overrideRec, path) <> GetElementEditValues(patched, path) then
-          try
-            SetElementEditValues(patched, path, GetElementEditValues(overrideRec, path));
-          except
-            on Ex : Exception do
-              ignore();
-          end;
-        Continue;
-      end;
-    end;      
+          if GetElementEditValues(overrideRec, path) <> GetElementEditValues(patched, path) then
+            try
+              SetElementEditValues(patched, path,  Round(StrToFloat(GetElementEditValues(overrideRec, path))));
+            except
+              on Ex : Exception do
+                ignore();
+            end;
+          if GetElementEditValues(overrideRec, path) <> GetElementEditValues(patched, path) then
+            try
+              SetElementEditValues(patched, path, GetElementEditValues(overrideRec, path));
+            except
+              on Ex : Exception do
+                ignore();
+            end;
+          Continue;
+        end;
+      end;      
+    end;
+    if s = 'CONT' then
+      RemoveInvalidEntries(patched, 'Items', 'CNTO\Item', 'COCT');
+    if (s = 'LVLI') or (s = 'LVLN') or (s = 'LVSP') then
+      RemoveInvalidEntries(patched, 'Leveled List Entries', 'LVLO\Reference', 'LLCT');
+    if Same(winner, patched) then
+      Remove(patched);
+  except
+    on Ex : Exception do
+      AddMessage('    ' + Ex.ClassName+' error raised, with message : '+Ex.Message);
   end;
-  if s = 'CONT' then
-    RemoveInvalidEntries(patched, 'Items', 'CNTO\Item', 'COCT');
-  if (s = 'LVLI') or (s = 'LVLN') or (s = 'LVSP') then
-    RemoveInvalidEntries(patched, 'Leveled List Entries', 'LVLO\Reference', 'LLCT');
-  if Same(winner, patched) then
-    Remove(patched);
   if cleanOften and (MasterCount(f) > 100) then
     CleanMasters(f);
 end;
