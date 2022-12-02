@@ -402,6 +402,7 @@ begin
       RemoveElement(patchedE, ElementByIndex(patchedE, 0));
     if counter <> '' then
       SetElementEditValues(patched, counter, ElementCount(patchedE));
+    end;
   end;
 end;
 
