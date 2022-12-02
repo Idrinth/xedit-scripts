@@ -146,6 +146,7 @@ begin
   flags.Add('CSTY#DATA');
   flags.Add('LVLN#LVLF');
   flags.Add('LVLI#LVLF');
+  flags.Add('RACE#VNAM - Equipment Flags');
   pseudolists := TStringList.Create;
   pseudolists.Add('ARMA#MODL');
   pseudolists.Add('ARMO#MODL');
