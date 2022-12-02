@@ -682,7 +682,7 @@ begin
     e1 := ElementByPath(one, paths[i]);
     e2 := ElementByPath(two, paths[i]);
     if not Exists(e1) or not Exists (e2) then
-      Exit
+      Exit;
     if IsInList(flags, e1, one) then
     begin
       if GetNativeValue(e1) <> GetNativeValue(e2) then
