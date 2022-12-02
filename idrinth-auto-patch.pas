@@ -680,8 +680,8 @@ begin
     e2 := ElementByPath(two, paths[i]);
     if IsInList(flags, e1, one) then
     begin
-      AddMessage("" + GetNativeValue(e1));
-      AddMessage("" + GetNativeValue(e2));
+      AddMessage('' + TypeInfo(GetNativeValue(e1)));
+      AddMessage('' + TypeInfo(GetNativeValue(e2)));
       if GetNativeValue(e1) <> GetNativeValue(e2) then
         Exit;
       Continue;
