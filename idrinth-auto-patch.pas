@@ -832,6 +832,16 @@ begin
               handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ');
             Continue;
           end;
+          if IsElement(element, 'ARMA#MODL') then
+          begin
+            handleWordList(patched, patchedE, original, ElementByPath(original, 'Additional Races'), 'MODL', '');
+            Continue;
+          end;
+          if IsElement(element, 'ARMO#MODL') then
+          begin
+            handleWordList(patched, patchedE, original, ElementByPath(original, 'Armature'), 'MODL', '');
+            Continue;
+          end;
           if not IsWordListSame(original, element) then
             handleWordList(patched, patchedE, original, element, Name(element), '');
           Continue;
