@@ -390,7 +390,11 @@ begin
   for k:=0 to keywordsP.Count -1 do
   begin
     if (keywordsP[k] <> '') then
-      SetEditValue(ElementAssign(patchedE, HighInteger, nil, False), keywordsP[k]);
+    begin
+      if isFalseWrapper then
+        SetEditValue(ElementAssign(patchedE, LowInteger, nil, False), keywordsP[k]);
+      else
+        SetEditValue(ElementAssign(patchedE, HighInteger, nil, False), keywordsP[k]);
   end;
   if not isFalseWrapper then
   begin
