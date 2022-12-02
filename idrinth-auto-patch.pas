@@ -890,7 +890,6 @@ begin
       end;
       if IsInList(pseudolists, element, e) then
       begin
-        end;
         if IsElement(element, 'ARMA#MODL') then
         begin
           handlePseudoList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '');
