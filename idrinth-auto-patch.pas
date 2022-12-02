@@ -354,7 +354,7 @@ begin
   end;
 end;
 
-procedure HandleWordList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string; isFalseWrapper: boolean = False);
+procedure HandleWordList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
 var
   keywordsP, keywordsO, keywordsE: TStringList;
   k: integer;
@@ -386,11 +386,8 @@ begin
     if (keywordsE.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) <> -1) AND (keywordsO.IndexOf(keyword) <> -1) then
       keywordsP.Delete(keywordsP.IndexOf(keyword));
   end;
-  if not isFalseWrapper then
-  begin
-    RemoveElement(patched, patchedE);
-    patchedE := Add(patched, wrapper, true);
-  end;
+  RemoveElement(patched, patchedE);
+  patchedE := Add(patched, wrapper, true);
   for k:=0 to keywordsP.Count -1 do
   begin
     if (keywordsP[k] <> '') then
@@ -401,12 +398,48 @@ begin
         SetEditValue(ElementAssign(patchedE, HighInteger, nil, False), keywordsP[k])
     end;
   end;
-  if not isFalseWrapper then
+  if keywordsP.Count < ElementCount(patchedE) then
+    RemoveElement(patchedE, ElementByIndex(patchedE, 0));
+  if counter <> '' then
+    SetElementEditValues(patched, counter, ElementCount(patchedE));
+end;
+
+procedure HandlePseudoList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
+var
+  keywordsP, keywordsO, keywordsE: TStringList;
+  k: integer;
+  keyword: string;
+begin
+  keywordsO := TStringList.Create;
+  keywordsE := TStringList.Create;
+  keywordsP := TStringList.Create;
+  for k := 0 to Pred(ElementCount(original)) do
   begin
-    if keywordsP.Count < ElementCount(patchedE) then
-      RemoveElement(patchedE, ElementByIndex(patchedE, 0));
-    if counter <> '' then
-      SetElementEditValues(patched, counter, ElementCount(patchedE));
+    keywordsO.Add(GetEditValue(ElementByIndex(original, k)));
+  end;
+  for k := 0 to Pred(ElementCount(patchedE)) do
+  begin
+    keyword := GetEditValue(ElementByIndex(patchedE, k));
+    if (keywordsP.IndexOf(keyword) = -1) AND (keyword <> '') then
+      keywordsP.Add(keyword);
+  end;
+  for k := 0 to Pred(ElementCount(element)) do
+  begin
+    keyword := GetEditValue(ElementByIndex(element, k));
+    if (keywordsO.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) = -1) AND (keyword <> '') then
+      keywordsP.Add(keyword);
+    keywordsE.Add(keyword);
+  end;
+  for k := 0 to keywordsO.Count -1 do
+  begin
+    keyword := keywordsO[k];
+    if (keywordsE.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) <> -1) AND (keywordsO.IndexOf(keyword) <> -1) then
+      keywordsP.Delete(keywordsP.IndexOf(keyword));
+  end;
+  for k:=0 to keywordsP.Count -1 do
+  begin
+    if (keywordsP[k] <> '') then
+      SetEditValue(ElementAssign(patched, LowInteger, nil, False), keywordsP[k])
   end;
 end;
 
@@ -668,12 +701,11 @@ var
   conflicts: boolean;
   e1,e2: IInterface;
 begin
+  Result := false;
   if ConflictAllForElements(one, two, False, False) <> caNoConflict then
   begin
-    Result := false;
     Exit;
   end;
-  Result := false;
   paths := TStringList.Create;
   GetPaths(one, '', paths, one);
   GetPaths(two, '', paths, two);
@@ -681,8 +713,8 @@ begin
   begin
     e1 := ElementByPath(one, paths[i]);
     e2 := ElementByPath(two, paths[i]);
-    //if (not Assigned(e1) or not Assigned(e2)) then
-    //  Exit;
+    if (not Assigned(e1) or not Assigned(e2)) then
+      Exit;
     if IsInList(flags, e1, one) then
     begin
       if GetNativeValue(e1) <> GetNativeValue(e2) then
@@ -832,28 +864,28 @@ begin
         if IsElement(element, 'KWDA') then
         begin
           if not IsWordListSame(original, element) then
-            handleWordList(patched, patchedE, original, element, 'KWDA', 'KSIZ', False);
+            handleWordList(patched, patchedE, original, element, 'KWDA', 'KSIZ');
           RemoveInvalidEntries(patched, 'KWDA', 'Keyword', 'KZIS');
           Continue;
         end;
         if IsElement(element, 'Perks') then
         begin
           if not IsWordListSame(original, element) then
-            handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ', False);
+            handleWordList(patched, patchedE, original, element, 'Perks', 'PRKZ');
           Continue;
         end;
         if IsElement(element, 'ARMA#MODL') then
         begin
-          handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '', true);
+          handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '');
           Continue;
         end;
         if IsElement(element, 'ARMO#MODL') then
         begin
-          handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '', true);
+          handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '');
           Continue;
         end;
         if not IsWordListSame(original, element) then
-          handleWordList(patched, patchedE, original, element, Name(element), '', False);
+          handleWordList(patched, patchedE, original, element, Name(element), '');
         Continue;
       end;
       if IsInList(pseudolists, element, e) then
@@ -861,12 +893,12 @@ begin
         end;
         if IsElement(element, 'ARMA#MODL') then
         begin
-          handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '', true);
+          handlePseudoList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '');
           Continue;
         end;
         if IsElement(element, 'ARMO#MODL') then
         begin
-          handleWordList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '', true);
+          handlePseudoList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '');
           Continue;
         end;
         Continue;
