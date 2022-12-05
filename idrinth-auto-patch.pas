@@ -203,6 +203,7 @@ begin
   blockcopy.Add('Scripts');
   blockcopy.Add('Script Fragments');
   blockcopy.Add('WRLD#MNAM - Map Data');
+  blockcopy.Add('ARMA#MO2T - Model Information');
   blacklist := TStringList.Create;
   blacklist.Add('KSIZ');
   blacklist.Add('PRKZ');
