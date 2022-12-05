@@ -205,6 +205,8 @@ begin
   blockcopy.Add('WRLD#MNAM - Map Data');
   blockcopy.Add('ARMA#MO2T - Model Information');
   blockcopy.Add('ARMA#MO3T - Model Information');
+  blockcopy.Add('ARMA#MO4T - Model Information');
+  blockcopy.Add('ARMA#MO5T - Model Information');
   blacklist := TStringList.Create;
   blacklist.Add('KSIZ');
   blacklist.Add('PRKZ');
