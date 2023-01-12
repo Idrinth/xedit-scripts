@@ -2,7 +2,7 @@ unit userscript;
 
 var
   f: IwbFile;
-  signatures, flags, blacklist, blockcopy, wordlists, objectlists, pseudolists: TStringList;
+  signatures, flags, blacklist, blockcopy, wordlists, objectlists: TStringList;
   cleanOften, allowInterrupt, groupedPatches: boolean;
   originalFileCount: integer;
 
@@ -147,9 +147,6 @@ begin
   flags.Add('LVLN#LVLF');
   flags.Add('LVLI#LVLF');
   flags.Add('RACE#VNAM - Equipment Flags');
-  pseudolists := TStringList.Create;
-  pseudolists.Add('ARMA#MODL');
-  pseudolists.Add('ARMO#MODL');
   wordlists := TStringList.Create;
   wordlists.Add('Perks');
   wordlists.Add('KWDA');
@@ -160,6 +157,8 @@ begin
   wordlists.Add('Movement Type Names');
   wordlists.Add('Packages');
   wordlists.Add('Movement Type Names (sorted)');
+  wordlists.Add('ARMA#MODL');
+  wordlists.Add('ARMO#MODL');
   objectlists := TStringList.Create;
   objectlists.Add('Factions');
   objectlists.Add('Effects');
@@ -400,45 +399,6 @@ begin
     RemoveElement(patchedE, ElementByIndex(patchedE, 0));
   if counter <> '' then
     SetElementEditValues(patched, counter, ElementCount(patchedE));
-end;
-
-procedure HandlePseudoList(patched: IInterface; patchedE: IInterface; original: IInterface; element: IInterface; wrapper: string; counter: string);
-var
-  keywordsP, keywordsO, keywordsE: TStringList;
-  k: integer;
-  keyword: string;
-begin
-  keywordsO := TStringList.Create;
-  keywordsE := TStringList.Create;
-  keywordsP := TStringList.Create;
-  for k := 0 to Pred(ElementCount(original)) do
-  begin
-    keywordsO.Add(GetEditValue(ElementByIndex(original, k)));
-  end;
-  for k := 0 to Pred(ElementCount(patchedE)) do
-  begin
-    keyword := GetEditValue(ElementByIndex(patchedE, k));
-    if (keywordsP.IndexOf(keyword) = -1) AND (keyword <> '') then
-      keywordsP.Add(keyword);
-  end;
-  for k := 0 to Pred(ElementCount(element)) do
-  begin
-    keyword := GetEditValue(ElementByIndex(element, k));
-    if (keywordsO.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) = -1) AND (keyword <> '') then
-      keywordsP.Add(keyword);
-    keywordsE.Add(keyword);
-  end;
-  for k := 0 to keywordsO.Count -1 do
-  begin
-    keyword := keywordsO[k];
-    if (keywordsE.IndexOf(keyword) = -1) AND (keywordsP.IndexOf(keyword) <> -1) AND (keywordsO.IndexOf(keyword) <> -1) then
-      keywordsP.Delete(keywordsP.IndexOf(keyword));
-  end;
-  for k:=0 to keywordsP.Count -1 do
-  begin
-    if (keywordsP[k] <> '') then
-      SetEditValue(ElementAssign(patched, LowInteger, nil, False), keywordsP[k])
-  end;
 end;
 
 function ToJSONObject(Obj: TJsonObject; element: IInterface; prefix: string): TJsonObject;
@@ -873,20 +833,6 @@ begin
         end;
         if not IsWordListSame(original, element) then
           handleWordList(patched, patchedE, original, element, Name(element), '');
-        Continue;
-      end;
-      if IsInList(pseudolists, element, e) then
-      begin
-        if IsElement(element, 'ARMA#MODL') then
-        begin
-          handlePseudoList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Additional Races'), 'MODL', '');
-          Continue;
-        end;
-        if IsElement(element, 'ARMO#MODL') then
-        begin
-          handlePseudoList(patched, ElementByPath(patched, 'Additional Races'), ElementByPath(previous, 'Additional Races'), ElementByPath(overrideRec, 'Armature'), 'MODL', '');
-          Continue;
-        end;
         Continue;
       end;
       if IsInList(objectlists, element, e) then
