@@ -595,7 +595,6 @@ var
   overrideRecFile: IwbFile;
 begin
   masters := TStringList.Create;
-  masters.Add(GetFileName(GetFile(e)));
   for i := 0 to Pred(OverrideCount(e)) do
   begin
     overrideRec := OverrideByIndex(e, i);
